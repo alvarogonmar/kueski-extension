@@ -1,16 +1,122 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/db');
+const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 
-// GET /api/tokens — saldo de tokens del usuario
-router.get('/', auth, async (req, res) => {
+// POST /api/tokens/generar — verifica PIN y genera token CVV
+router.post('/generar', auth, async (req, res) => {
+  const { pin, comercio_id, monto, num_quincenas } = req.body;
   try {
-    const result = await pool.query(
-      'SELECT saldo FROM tokens WHERE usuario_id = $1',
+    const pinResult = await pool.query(
+      'SELECT pin_hash, intentos_fallidos, bloqueado_hasta FROM pins WHERE usuario_id = $1',
       [req.usuario.id]
     );
-    res.json(result.rows[0] || { saldo: 0 });
+
+    if (!pinResult.rows[0]) {
+      return res.status(404).json({ error: 'PIN no configurado' });
+    }
+
+    const pinData = pinResult.rows[0];
+
+    if (pinData.bloqueado_hasta && new Date() < new Date(pinData.bloqueado_hasta)) {
+      return res.status(423).json({
+        error: 'Cuenta bloqueada',
+        bloqueado_hasta: pinData.bloqueado_hasta
+      });
+    }
+
+    const valido = await bcrypt.compare(pin, pinData.pin_hash);
+
+    if (!valido) {
+      const intentos = pinData.intentos_fallidos + 1;
+      const bloqueo = intentos >= 3 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+      await pool.query(
+        'UPDATE pins SET intentos_fallidos = $1, bloqueado_hasta = $2 WHERE usuario_id = $3',
+        [intentos, bloqueo, req.usuario.id]
+      );
+      await pool.query(
+        'INSERT INTO log_intentos_pin (usuario_id, exitoso, ip_origen) VALUES ($1, false, $2)',
+        [req.usuario.id, req.ip]
+      );
+      return res.status(401).json({
+        error: 'PIN incorrecto',
+        intentos_restantes: Math.max(0, 3 - intentos)
+      });
+    }
+
+    // PIN correcto — resetear y generar token
+    await pool.query(
+      'UPDATE pins SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE usuario_id = $1',
+      [req.usuario.id]
+    );
+    await pool.query(
+      'INSERT INTO log_intentos_pin (usuario_id, exitoso, ip_origen) VALUES ($1, true, $2)',
+      [req.usuario.id, req.ip]
+    );
+
+    const tokenResult = await pool.query(
+      `INSERT INTO tokens_pago (usuario_id, comercio_id, monto, num_quincenas)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, expira_en`,
+      [req.usuario.id, comercio_id, monto, num_quincenas]
+    );
+
+    res.json({ valido: true, token_pago: tokenResult.rows[0] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/tokens/canjear — confirma la compra con el token CVV
+router.post('/canjear', auth, async (req, res) => {
+  const { token_id } = req.body;
+  try {
+    const tokenResult = await pool.query(
+      'SELECT * FROM tokens_pago WHERE id = $1',
+      [token_id]
+    );
+    const token = tokenResult.rows[0];
+
+    if (!token) return res.status(404).json({ error: 'Token no existe' });
+    if (token.usado) return res.status(400).json({ error: 'Token ya fue usado' });
+    if (new Date() > new Date(token.expira_en)) {
+      return res.status(410).json({ error: 'Token expirado' });
+    }
+
+    // Calcular monto por quincena con tasa de la BD
+    const configResult = await pool.query('SELECT tasa_interes_quincenal FROM configuracion_kueski LIMIT 1');
+    const tasa = parseFloat(configResult.rows[0].tasa_interes_quincenal);
+    const monto_quincena = parseFloat(
+      (token.monto * tasa / (1 - Math.pow(1 + tasa, -token.num_quincenas))).toFixed(2)
+    );
+
+    // Marcar token como usado
+    await pool.query('UPDATE tokens_pago SET usado = true WHERE id = $1', [token_id]);
+
+    // Crear la compra
+    const compraResult = await pool.query(
+      `INSERT INTO compras (usuario_id, comercio_id, token_pago_id, monto_total, num_quincenas, monto_quincena)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [token.usuario_id, token.comercio_id, token.id, token.monto, token.num_quincenas, monto_quincena]
+    );
+
+    const compra_id = compraResult.rows[0].id;
+
+    // Crear cuotas individuales
+    const hoy = new Date();
+    for (let i = 1; i <= token.num_quincenas; i++) {
+      const fecha = new Date(hoy);
+      fecha.setDate(fecha.getDate() + i * 15);
+      await pool.query(
+        `INSERT INTO cuotas (compra_id, numero_cuota, monto, fecha_vencimiento)
+         VALUES ($1, $2, $3, $4)`,
+        [compra_id, i, monto_quincena, fecha.toISOString().split('T')[0]]
+      );
+    }
+
+    res.status(201).json({ mensaje: 'Compra registrada correctamente', compra_id });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

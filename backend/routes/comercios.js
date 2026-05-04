@@ -22,9 +22,8 @@ router.get('/dominio/:dominio', async (req, res) => {
       'SELECT * FROM comercios WHERE dominio = $1 AND activo = true',
       [req.params.dominio]
     );
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0)
       return res.status(404).json({ error: 'Comercio no encontrado' });
-    }
     res.json(result.rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -35,7 +34,7 @@ router.get('/dominio/:dominio', async (req, res) => {
 router.get('/favoritos', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT c.id, c.nombre, c.dominio, c.logo_url 
+      `SELECT c.id, c.nombre, c.dominio, c.logo_url
        FROM comercios c
        INNER JOIN favoritos f ON f.comercio_id = c.id
        WHERE f.usuario_id = $1`,
@@ -52,7 +51,9 @@ router.post('/favoritos', auth, async (req, res) => {
   const { comercio_id } = req.body;
   try {
     await pool.query(
-      'INSERT INTO favoritos (usuario_id, comercio_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      `INSERT INTO favoritos (usuario_id, comercio_id)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
       [req.usuario.id, comercio_id]
     );
     res.status(201).json({ mensaje: 'Comercio agregado a favoritos' });
