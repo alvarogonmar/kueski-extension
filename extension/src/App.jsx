@@ -1,122 +1,112 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React, { useEffect, useState } from 'react'
+import LoginView from './components/LoginView.jsx'
+import HomeCard from './components/HomeCard.jsx'
+import PaymentPlan from './components/PaymentPlan.jsx'
+import PurchaseHistory from './components/PurchaseHistory.jsx'
+import NavBar from './components/NavBar.jsx'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [token, setToken] = useState(null)
+  const [usuario, setUsuario] = useState(null)
+  const [view, setView] = useState('home')
+  const [monto, setMonto] = useState(null)
+  const [comercio, setComercio] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Restaurar sesión
+    const restore = async () => {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+          chrome.storage.local.get(['jwt', 'usuario'], (result) => {
+            if (result.jwt) {
+              setToken(result.jwt)
+              setUsuario(result.usuario)
+            }
+            setLoading(false)
+          })
+        } else {
+          const jwt = localStorage.getItem('kueski_jwt')
+          if (jwt) {
+            setToken(jwt)
+            setUsuario(JSON.parse(localStorage.getItem('kueski_usuario') || 'null'))
+          }
+          setLoading(false)
+        }
+      } catch {
+        setLoading(false)
+      }
+    }
+    restore()
+
+    // Escuchar mensajes del content script
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg.tipo === 'MONTO') setMonto(msg.monto)
+        if (msg.tipo === 'COMERCIO') setComercio(msg.comercio)
+      })
+    }
+  }, [])
+
+  const handleLogin = (jwt, user) => {
+    setToken(jwt)
+    setUsuario(user)
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ jwt, usuario: user })
+    } else {
+      localStorage.setItem('kueski_jwt', jwt)
+      localStorage.setItem('kueski_usuario', JSON.stringify(user))
+    }
+  }
+
+  const handleLogout = () => {
+    setToken(null)
+    setUsuario(null)
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.remove(['jwt', 'usuario'])
+    } else {
+      localStorage.removeItem('kueski_jwt')
+      localStorage.removeItem('kueski_usuario')
+    }
+  }
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, background: 'var(--kueski-bg)' }}>
+      <div style={{ color: 'var(--kueski-primary)', fontSize: 32 }}>⬡</div>
+    </div>
+  )
+
+  if (!token) return <LoginView onLogin={handleLogin} />
+
+  const renderView = () => {
+    switch (view) {
+      case 'plan': return <PaymentPlan monto={monto} comercio={comercio} token={token} />
+      case 'history': return <PurchaseHistory token={token} />
+      default: return <HomeCard usuario={usuario} comercio={comercio} monto={monto} onVerPlan={() => setView('plan')} />
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--kueski-bg)' }}>
+      {/* Header */}
+      <div style={{ background: 'var(--kueski-blue)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>kueski</span>
+          <span style={{ fontSize: 11, color: 'var(--kueski-primary)', fontWeight: 700, background: 'rgba(0,176,80,0.2)', padding: '2px 6px', borderRadius: 4 }}>pay</span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+        {comercio && <span className="tag tag-success">● {comercio.nombre}</span>}
+        <button onClick={handleLogout} style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, background: 'none' }}>
+          Salir
         </button>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
+      {/* Contenido */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+        {renderView()}
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {/* NavBar */}
+      <NavBar view={view} setView={setView} />
+    </div>
   )
 }
-
-export default App
