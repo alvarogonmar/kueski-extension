@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Kueski Pay Assistant",
+  "version": "1.0.0",
+  "description": "Compra hoy, paga en quincenas con Kueski Pay",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.amazon.com.mx/*",
+        "*://*.liverpool.com.mx/*",
+        "*://*.walmart.com.mx/*"
+      ],
+      "js": ["content/content.js"]
+    }
+  ],
+  "permissions": ["storage", "notifications", "activeTab"],
+  "host_permissions": [
+    "*://*.amazon.com.mx/*",
+    "*://*.liverpool.com.mx/*",
+    "*://*.walmart.com.mx/*",
+    "http://localhost:3001/*"
+  ]
+}
