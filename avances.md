@@ -425,3 +425,114 @@ Vista accesible desde Perfil → Configuración → Preferencias:
 | Favoritos (agregar, quitar, ver)         | ✅           |
 | Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
 | Pruebas finales y demo                   | ⏳ Pendiente |
+
+# Reporte de Avance — Sesión 5
+
+**Continuación de:** Reporte Sesión 4
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Perfil de Moroso (Detección y bloqueo)
+
+Se implementó el sistema completo de detección de usuarios morosos en 4 partes:
+
+**Archivos modificados:**
+
+- `backend/routes/compras.js` — endpoint `POST /api/compras/actualizar-vencidas`
+- `backend/routes/tokens.js` — validación de cuotas vencidas antes de generar CVV
+- `src/services/api.js` — método `comprasAPI.actualizarVencidas()`
+- `src/App.jsx` — `useEffect` que llama `actualizarVencidas` al iniciar sesión
+- `src/components/HomeCard.jsx` — banner visual de moroso
+
+**Flujo implementado:**
+
+```
+Al abrir popup con sesión activa:
+  → POST /api/compras/actualizar-vencidas
+    → Marca cuotas vencidas en BD
+    → Calcula nivel_riesgo (bajo / medio / alto)
+    → App.jsx guarda nivelRiesgo + cuotasVencidas en estado
+      → HomeCard muestra banner según nivel
+      → Botón "Ver plan de pagos" se bloquea si nivel = 'alto'
+```
+
+**Regla de nivel de riesgo:**
+| Cuotas vencidas | Nivel | Efecto |
+|---|---|---|
+| 0 | `bajo` | Sin restricciones |
+| 1-2 | `medio` | Banner naranja 🟠, puede seguir comprando |
+| 3+ | `alto` | Banner rojo 🔴, CVV bloqueado |
+
+**Bloqueo en backend:**
+En `POST /api/tokens/generar` se verifica si el usuario tiene cuotas vencidas antes de continuar. Si tiene 1 o más → regresa `403` con mensaje `"Tienes pagos vencidos"`.
+
+---
+
+### 2. Crear PIN para usuarios sin PIN registrado
+
+Se detectó que usuarios nuevos o creados directamente en BD no podían acceder al flujo de "Cambiar PIN" porque éste pedía el PIN actual primero.
+
+**Solución implementada:**
+
+**Archivo nuevo — endpoint:**
+
+- `GET /api/pin/existe` — verifica si el usuario tiene PIN sin contar intentos fallidos
+
+**Archivos modificados:**
+
+- `backend/routes/pin.js` — endpoint `GET /api/pin/existe`
+- `src/services/api.js` — método `pinAPI.existe(token)`
+- `src/components/ProfileView.jsx` — lógica dinámica según `tienePin`
+
+**Flujo:**
+
+```
+Al abrir Perfil:
+  → GET /api/pin/existe
+    → tienePin = true  → muestra "Cambiar PIN" (2 pasos: actual → nuevo)
+    → tienePin = false → muestra "Crear PIN"   (1 paso: directo al nuevo)
+```
+
+---
+
+## Bugs encontrados y corregidos
+
+### Bug 1 — Intento falso de PIN contaba como intento fallido
+
+**Causa:** Para saber si el usuario tenía PIN, se llamaba `pinAPI.verificar(token, '____')` con un valor falso. Esto sumaba al contador de intentos fallidos y podía bloquear la cuenta tras 3 verificaciones de perfil.
+**Solución:** Se creó el endpoint `GET /api/pin/existe` que solo consulta si existe la fila en la tabla `pins` sin tocar el contador de intentos.
+
+### Bug 2 — Usuario sin PIN no podía crearlo desde Perfil
+
+**Causa:** El botón "Cambiar PIN" siempre pedía el PIN actual en el Paso 1, lo que bloqueaba a usuarios que nunca habían configurado uno.
+**Solución:** Se agregó estado `tienePin` que al ser `false` salta directo al Paso 2 y usa `pinAPI.crear()` en lugar de `pinAPI.cambiar()`. El texto del botón y los títulos también cambian dinámicamente.
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                   | Estado       |
+| ---------------------------------------- | ------------ |
+| Backend API REST completo                | ✅           |
+| Autenticación JWT                        | ✅           |
+| Base de datos Supabase (12 tablas)       | ✅           |
+| Detección de comercio y precio           | ✅           |
+| Simulador de quincenas                   | ✅           |
+| Flujo PIN → CVV → Confirmación           | ✅           |
+| Validación y descuento de crédito        | ✅           |
+| Historial de compras                     | ✅           |
+| Cambio de tienda sin recargar            | ✅           |
+| Persistencia de vista al cerrar popup    | ✅           |
+| CVV no reinicia countdown al reabrir     | ✅           |
+| NoComercioView para páginas no afiliadas | ✅           |
+| Sección Alertas con vencimientos         | ✅           |
+| Sección Perfil completa                  | ✅           |
+| Cambio de PIN (2 pasos)                  | ✅           |
+| Crear PIN para usuarios nuevos           | ✅           |
+| Preferencias (email, push, días)         | ✅           |
+| Favoritos (agregar, quitar, ver)         | ✅           |
+| Perfil de moroso (detección y bloqueo)   | ✅           |
+| Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
+| Pruebas finales y demo                   | ⏳ Pendiente |
