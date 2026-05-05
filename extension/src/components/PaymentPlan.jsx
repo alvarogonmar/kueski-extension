@@ -3,7 +3,7 @@ import { calculadoraAPI } from '../services/api.js'
 
 const OPCIONES = [2, 4, 6, 8, 10, 12]
 
-export default function PaymentPlan({ monto, comercio, token }) {
+export default function PaymentPlan({ monto, comercio, token, onPagar }) {
   const [quincenas, setQuincenas] = useState(6)
   const [resultado, setResultado] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -99,6 +99,15 @@ export default function PaymentPlan({ monto, comercio, token }) {
           <div style={{ fontSize: 12, color: 'var(--kueski-primary)', fontWeight: 600, marginBottom: 6 }}>
             PAGARÍAS CADA QUINCENA
           </div>
+        {resultado && (
+            <button
+                className="btn-primary"
+                style={{ marginTop: 8 }}
+                onClick={() => onPagar(quincenas)}
+            >
+                Pagar con Kueski Pay 🔐
+            </button>
+            )}
           <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--kueski-blue)' }}>
             {loading ? '...' : `$${Number(resultado.monto_por_quincena).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           </div>

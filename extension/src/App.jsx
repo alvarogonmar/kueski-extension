@@ -4,6 +4,8 @@ import HomeCard from './components/HomeCard.jsx'
 import PaymentPlan from './components/PaymentPlan.jsx'
 import PurchaseHistory from './components/PurchaseHistory.jsx'
 import NavBar from './components/NavBar.jsx'
+import PinView from './components/PinView.jsx'
+import CvvView from './components/CvvView.jsx'
 
 export default function App() {
   const [token, setToken] = useState(null)
@@ -12,6 +14,8 @@ export default function App() {
   const [monto, setMonto] = useState(null)
   const [comercio, setComercio] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [pinConfirmado, setPinConfirmado] = useState(null)
+  const [quincenasSeleccionadas, setQuincenasSeleccionadas] = useState(null)
 
   useEffect(() => {
     const restore = async () => {
@@ -89,13 +93,44 @@ export default function App() {
 
   if (!token) return <LoginView onLogin={handleLogin} />
 
-  const renderView = () => {
-    switch (view) {
-      case 'plan': return <PaymentPlan monto={monto} comercio={comercio} token={token} />
-      case 'history': return <PurchaseHistory token={token} />
-      default: return <HomeCard usuario={usuario} comercio={comercio} monto={monto} onVerPlan={() => setView('plan')} token={token} />
+    const renderView = () => {
+      switch (view) {
+        case 'pin': return (
+        <PinView
+            token={token}
+            monto={monto}
+            quincenas={quincenasSeleccionadas}
+            onSuccess={(pin) => { setPinConfirmado(pin); setView('cvv') }}
+            onCancel={() => setView('plan')}
+        />
+        )
+        case 'cvv': return (
+        <CvvView
+            token={token}
+            pin={pinConfirmado}
+            comercio={comercio}
+            monto={monto}
+            quincenas={quincenasSeleccionadas}
+            onDone={() => { setView('home'); setPinConfirmado(null) }}
+        />
+        )
+        case 'plan': return (
+        <PaymentPlan
+            monto={monto}
+            comercio={comercio}
+            token={token}
+            onPagar={(q) => { setQuincenasSeleccionadas(q); setView('pin') }}
+        />
+        )
+        case 'history': return <PurchaseHistory token={token} />
+        default: return (
+        <HomeCard
+            usuario={usuario} comercio={comercio} monto={monto}
+            onVerPlan={() => setView('plan')} token={token}
+        />
+        )
     }
-  }
+    }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--kueski-bg)' }}>
