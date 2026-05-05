@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { pinAPI, preferenciasAPI } from '../services/api.js'
+import { pinAPI, preferenciasAPI, favoritosAPI } from '../services/api.js'
 
 
 export default function ProfileView({ usuario, token, onVerHistorial }) {
@@ -10,6 +10,8 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [favoritos, setFavoritos] = useState([])
+
 
   // ✅ NUEVO — estado de preferencias
   const [prefs, setPrefs] = useState({ notif_email: true, notif_push: true, dias_antes_recordatorio: 3 })
@@ -17,16 +19,27 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   const [mensajePrefs, setMensajePrefs] = useState('')
 
 
-  // ✅ NUEVO — cargar preferencias al abrir
   useEffect(() => {
     const cargar = async () => {
       try {
-        const data = await preferenciasAPI.get(token)
+        const [data, favs] = await Promise.all([
+          preferenciasAPI.get(token),
+          favoritosAPI.getAll(token)
+        ])
         if (data) setPrefs(data)
+        setFavoritos(favs || [])
       } catch {}
     }
     cargar()
   }, [])
+
+
+  const quitarFavorito = async (dominio) => {
+    try {
+      await favoritosAPI.remove(token, dominio)
+      setFavoritos(favs => favs.filter(f => f.dominio !== dominio))
+    } catch {}
+  }
 
 
   const handlePinActual = async () => {
@@ -311,7 +324,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
         </button>
       </div>
 
-      {/* Preferencias — ✅ NUEVO */}
+      {/* Configuración — Preferencias */}
       <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
         border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
@@ -328,6 +341,43 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           <span style={{ color: 'var(--kueski-text-muted)' }}>→</span>
         </button>
       </div>
+
+      {/* ✅ NUEVO — Mis favoritos (solo si hay alguno) */}
+      {favoritos.length > 0 && (
+        <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
+            color: 'var(--kueski-text-muted)', textTransform: 'uppercase', letterSpacing: 1,
+            borderBottom: '1px solid var(--kueski-border)' }}>
+            Mis favoritos
+          </div>
+          {favoritos.map((fav, i) => (
+            <div key={fav.dominio} style={{
+              padding: '12px 16px', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: i < favoritos.length - 1 ? '1px solid var(--kueski-border)' : 'none'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>⭐</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--kueski-text)' }}>
+                    {fav.nombre}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--kueski-text-muted)' }}>
+                    {fav.dominio}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => quitarFavorito(fav.dominio)} style={{
+                background: 'none', fontSize: 16, cursor: 'pointer',
+                color: 'var(--kueski-text-muted)'
+              }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Accesos rápidos */}
       <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',

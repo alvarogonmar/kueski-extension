@@ -1,9 +1,13 @@
 // HomeCard.jsx — sección de tokens corregida
 import React, { useEffect, useState } from 'react'
-import { calculadoraAPI } from '../services/api.js'
+import { calculadoraAPI, favoritosAPI } from '../services/api.js' // ✅ agregado favoritosAPI
+
 
 export default function HomeCard({ usuario, comercio, monto, onVerPlan, token }) {
   const [perfil, setPerfil] = useState(null)
+  const [esFavorito, setEsFavorito] = useState(false) // ✅ NUEVO
+  const [loadingFav, setLoadingFav] = useState(false) // ✅ NUEVO
+
 
   useEffect(() => {
     if (token) {
@@ -12,6 +16,36 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
         .catch(() => setPerfil(null))
     }
   }, [token])
+
+
+  // ✅ NUEVO — verificar si el comercio actual ya es favorito
+  useEffect(() => {
+    if (!token || !comercio?.dominio) return
+    favoritosAPI.getAll(token)
+      .then(favs => {
+        const existe = favs.some(f => f.dominio === comercio.dominio)
+        setEsFavorito(existe)
+      })
+      .catch(() => {})
+  }, [token, comercio])
+
+
+  // ✅ NUEVO — toggle favorito
+  const toggleFavorito = async () => {
+    if (!comercio?.dominio || loadingFav) return
+    setLoadingFav(true)
+    try {
+      if (esFavorito) {
+        await favoritosAPI.remove(token, comercio.dominio)
+        setEsFavorito(false)
+      } else {
+        await favoritosAPI.add(token, comercio.dominio)
+        setEsFavorito(true)
+      }
+    } catch {}
+    setLoadingFav(false)
+  }
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -26,6 +60,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
         </div>
       </div>
 
+
       {/* Comercio detectado */}
       {comercio ? (
         <div style={{
@@ -39,7 +74,21 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-blue)' }}>{comercio.nombre}</div>
           </div>
-          <span className="tag tag-success">● Activo</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* ✅ NUEVO — botón de favorito */}
+            <button
+              onClick={toggleFavorito}
+              disabled={loadingFav}
+              title={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              style={{
+                background: 'none', fontSize: 20, cursor: 'pointer',
+                opacity: loadingFav ? 0.5 : 1, transition: 'transform 0.15s',
+                transform: loadingFav ? 'scale(0.9)' : 'scale(1)'
+              }}>
+              {esFavorito ? '⭐' : '☆'}
+            </button>
+            <span className="tag tag-success">● Activo</span>
+          </div>
         </div>
       ) : (
         <div style={{
@@ -50,6 +99,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
           Visita Amazon, Liverpool o Walmart para activar Kueski Pay
         </div>
       )}
+
 
       {/* Monto detectado */}
       {monto && (
@@ -66,6 +116,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
           <button className="btn-primary" onClick={onVerPlan}>Ver plan de pagos →</button>
         </div>
       )}
+
 
       {/* Crédito disponible (viene de perfil_financiero) */}
       {perfil && (

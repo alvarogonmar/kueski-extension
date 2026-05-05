@@ -82,3 +82,11 @@ export const recordatoriosAPI = {
   marcarEnviado: (token, id) =>
     request(`/recordatorios/${id}/enviado`, { method: 'PUT' }, token),
 }
+
+export const favoritosAPI = {
+  getAll: (token) => request('/favoritos', {}, token),
+  add: (token, dominio) =>
+    request('/favoritos', { method: 'POST', body: JSON.stringify({ dominio }) }, token),
+  remove: (token, dominio) =>
+    request(`/favoritos/${dominio}`, { method: 'DELETE' }, token),
+}

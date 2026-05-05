@@ -348,3 +348,80 @@ El tab de Alertas muestra un badge rojo con el número de cuotas que vencen en 7
 | Favoritos                                | ⏳ Pendiente |
 | Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
 | Pruebas finales y demo                   | ⏳ Pendiente |
+
+# Reporte de Avance — Sesión 4
+
+## **Continuación de:** Reporte Sesión 3
+
+## Lo que se implementó en esta sesión
+
+### 1. Preferencias
+
+Vista accesible desde Perfil → Configuración → Preferencias:
+
+- Toggle **Notificaciones email** (notif_email)
+- Toggle **Notificaciones push** (notif_push)
+- Selector de días de anticipación: **1d / 3d / 5d / 7d** (dias_antes_recordatorio)
+- Botón "Guardar preferencias" → `PUT /api/preferencias`
+- Carga los valores actuales desde la BD al abrir
+
+---
+
+### 2. Favoritos
+
+**En HomeCard:**
+
+- Botón ☆/⭐ junto al tag "Activo" cuando hay comercio detectado
+- ☆ = no es favorito → click agrega
+- ⭐ = ya es favorito → click quita
+- Verifica si es favorito al cargar consultando `GET /api/favoritos`
+
+**En ProfileView:**
+
+- Sección "Mis favoritos" muestra la lista de tiendas guardadas
+- Cada item tiene nombre, dominio y botón ✕ para eliminar
+- La sección no aparece si no hay favoritos
+
+**Backend (`routes/favoritos.js`):**
+
+- `GET /api/favoritos` — lista favoritos con nombre, dominio y logo_url
+- `POST /api/favoritos` — agrega por dominio
+- `DELETE /api/favoritos/:dominio` — elimina por dominio
+
+---
+
+## Estado del Navbar
+
+| Tab       | Ícono | Estado         |
+| --------- | ----- | -------------- |
+| Inicio    | ⊙     | ✅             |
+| Plan      | ◈     | ✅             |
+| Alertas   | 🔔    | ✅ (con badge) |
+| Historial | ☰    | ✅             |
+| Perfil    | ◉     | ✅             |
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                   | Estado       |
+| ---------------------------------------- | ------------ |
+| Backend API REST completo                | ✅           |
+| Autenticación JWT                        | ✅           |
+| Base de datos Supabase (12 tablas)       | ✅           |
+| Detección de comercio y precio           | ✅           |
+| Simulador de quincenas                   | ✅           |
+| Flujo PIN → CVV → Confirmación           | ✅           |
+| Validación y descuento de crédito        | ✅           |
+| Historial de compras                     | ✅           |
+| Cambio de tienda sin recargar            | ✅           |
+| Persistencia de vista al cerrar popup    | ✅           |
+| CVV no reinicia countdown al reabrir     | ✅           |
+| NoComercioView para páginas no afiliadas | ✅           |
+| Sección Alertas con vencimientos         | ✅           |
+| Sección Perfil completa                  | ✅           |
+| Cambio de PIN (2 pasos)                  | ✅           |
+| Preferencias (email, push, días)         | ✅           |
+| Favoritos (agregar, quitar, ver)         | ✅           |
+| Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
+| Pruebas finales y demo                   | ⏳ Pendiente |

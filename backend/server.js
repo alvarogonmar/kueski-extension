@@ -22,6 +22,7 @@ app.use('/api/tokens',        require('./routes/tokens'));
 app.use('/api/compras',       require('./routes/compras'));
 app.use('/api/preferencias',  require('./routes/preferencias'));
 app.use('/api/recordatorios', require('./routes/recordatorios'));
+app.use('/api/favoritos', require('./routes/favoritos'))
 
 // Health check
 app.get('/', (req, res) => {
