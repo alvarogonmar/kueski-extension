@@ -166,7 +166,7 @@ Se construyó el popup completo con los siguientes componentes:
 - Pruebas en Chrome con usuario real en Amazon, Liverpool y Walmart
 - Preparar demo para entrega del ciclo
 
-## Actualizacion 2
+## Reporte Sesión 2
 
 Lo que se construyó
 Flujo completo de compra PIN + CVV
@@ -207,3 +207,144 @@ Al confirmar compra → descuenta el monto de credito_usado en Supabase
 | Preferencias                      | ⏳ Pendiente |
 | Favoritos                         | ⏳ Pendiente |
 | Recordatorios                     | ⏳ Pendiente |
+
+# Reporte de Avance — Sesión 3
+
+## Kueski Pay Chrome Extension
+
+**Fecha:** 5 de Mayo 2026
+**Continuación de:** Reporte Sesión 2
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Sección Perfil en el Navbar
+
+Se creó una nueva sección completa de perfil accesible desde el navbar.
+
+**Archivos creados:**
+
+- `src/components/ProfileView.jsx` — vista completa de perfil
+
+**Archivos modificados:**
+
+- `src/components/NavBar.jsx` — agregado tab "Perfil" con ícono ◉
+- `src/App.jsx` — import + case `'profile'` en `renderView()`
+- `src/services/api.js` — agregado método `pinAPI.cambiar()`
+- `backend/routes/pin.js` — agregado endpoint `POST /api/pin/cambiar`
+
+**Contenido de ProfileView:**
+
+- **Cuenta** — muestra nombre, apellido y correo del usuario (solo lectura)
+- **Seguridad** — botón "Cambiar PIN" con flujo de 2 pasos
+- **Accesos rápidos** — botón "Mis compras" que navega al historial, botón "Centro de ayuda" que abre kueski.com en nueva pestaña
+
+---
+
+### 2. Flujo de Cambio de PIN (2 pasos)
+
+Dentro de ProfileView se implementó el flujo completo:
+
+```
+Paso 1 → Ingresa PIN actual (verificación de identidad)
+Paso 2 → Ingresa PIN nuevo (diferente al actual)
+         → Mensaje de éxito ✅
+```
+
+El backend valida el PIN actual, respeta el bloqueo de 3 intentos fallidos y guarda el nuevo hash con bcrypt.
+
+---
+
+### 3. Vista NoComercioView
+
+Cuando el usuario abre el popup estando en una página no afiliada (Google, YouTube, etc.), en lugar de mostrar HomeCard vacío, se muestra una pantalla con mensaje y links directos a las 3 tiendas afiliadas.
+
+**Archivo creado:**
+
+- `src/components/NoComercioView.jsx`
+
+**Comportamiento:**
+
+- Si `comercio === null` → muestra NoComercioView
+- Si `comercio` tiene valor → muestra HomeCard normal
+
+---
+
+### 4. Sección Alertas en el Navbar
+
+Se creó una vista de alertas similar al mockup del proyecto con 2 secciones.
+
+**Archivo creado:**
+
+- `src/components/AlertasView.jsx`
+
+**Archivos modificados:**
+
+- `src/components/NavBar.jsx` — tab 🔔 Alertas con badge rojo de conteo
+- `src/App.jsx` — import + case `'alertas'` + estado `alertasPendientes`
+
+**Contenido de AlertasView:**
+
+- **Próximos vencimientos** — cuotas pendientes que vencen en los próximos 30 días, ordenadas por fecha, con badge de días restantes (rojo ≤7 días, naranja 8-30 días)
+- **Historial de alertas** — últimas 5 cuotas pagadas con fecha
+- **Botón Notif. activas/inactivas** — toggle que llama a `PUT /api/preferencias`
+
+**Navbar con badge:**
+El tab de Alertas muestra un badge rojo con el número de cuotas que vencen en 7 días o menos.
+
+---
+
+## Bugs encontrados y corregidos
+
+### Bug 1 — "No se pudo cambiar el PIN" siempre
+
+**Causa:** `pinAPI.cambiar()` no existía en `api.js`. El método no estaba definido.
+**Solución:** Se agregó `cambiar: (token, pin_actual, pin_nuevo)` en `pinAPI` dentro de `api.js`.
+
+### Bug 2 — Alertas mostraba TODAS las cuotas de todas las quincenas
+
+**Causa:** El `forEach` aplanaba todas las cuotas sin filtrar por fecha, resultando en 80+ items listados.
+**Solución:** Se agregó filtro `fechaVence <= en30dias` para mostrar solo cuotas del próximo mes. Las cuotas vencidas sin pagar (fecha pasada) sí se incluyen como alerta urgente.
+
+### Bug 3 — Compras completadas seguían apareciendo en Alertas
+
+**Causa:** El código no revisaba el `estado` de la compra padre, solo el estado de cada cuota individual.
+**Solución:** Se agregó `if (compra.estado === 'completada' || compra.estado === 'cancelada') return` antes de iterar las cuotas.
+
+---
+
+## Estado del Navbar
+
+| Tab       | Ícono | Estado         |
+| --------- | ----- | -------------- |
+| Inicio    | ⊙     | ✅             |
+| Plan      | ◈     | ✅             |
+| Alertas   | 🔔    | ✅ (con badge) |
+| Historial | ☰    | ✅             |
+| Perfil    | ◉     | ✅             |
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                   | Estado       |
+| ---------------------------------------- | ------------ |
+| Backend API REST completo                | ✅           |
+| Autenticación JWT                        | ✅           |
+| Base de datos Supabase (12 tablas)       | ✅           |
+| Detección de comercio y precio           | ✅           |
+| Simulador de quincenas                   | ✅           |
+| Flujo PIN → CVV → Confirmación           | ✅           |
+| Validación y descuento de crédito        | ✅           |
+| Historial de compras                     | ✅           |
+| Cambio de tienda sin recargar            | ✅           |
+| Persistencia de vista al cerrar popup    | ✅           |
+| CVV no reinicia countdown al reabrir     | ✅           |
+| NoComercioView para páginas no afiliadas | ✅           |
+| Sección Perfil con cambio de PIN         | ✅           |
+| Sección Alertas con vencimientos         | ✅           |
+| Preferencias                             | ⏳ Pendiente |
+| Favoritos                                | ⏳ Pendiente |
+| Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
+| Pruebas finales y demo                   | ⏳ Pendiente |
