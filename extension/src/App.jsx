@@ -6,6 +6,7 @@ import PurchaseHistory from './components/PurchaseHistory.jsx'
 import NavBar from './components/NavBar.jsx'
 import PinView from './components/PinView.jsx'
 import CvvView from './components/CvvView.jsx'
+import NoComercioView from './components/NoComercioView.jsx' // ✅ NUEVO
 
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
   const [pinConfirmado, setPinConfirmado] = useState(null)
   const [quincenasSeleccionadas, setQuincenasSeleccionadas] = useState(null)
 
+
   // ✅ NUEVO — función centralizada para cambiar de vista y persistirla
   const navegarA = (vista, extras = {}) => {
     setView(vista)
@@ -28,6 +30,7 @@ export default function App() {
     }
   }
 
+
   // ✅ NUEVO — limpiar vista guardada al terminar flujo
   const limpiarVista = () => {
     setView('home')
@@ -36,6 +39,7 @@ export default function App() {
       chrome.storage.session.remove(['vistaActiva', 'datosVista'])
     }
   }
+
 
 
   useEffect(() => {
@@ -50,6 +54,7 @@ export default function App() {
             }
             if (result.last_comercio) setComercio(result.last_comercio)
             if (result.last_monto) setMonto(result.last_monto)
+
 
             // ✅ NUEVO — restaurar vista si el popup se cerró a la mitad
             chrome.storage.session.get(['vistaActiva', 'datosVista'], (session) => {
@@ -76,6 +81,7 @@ export default function App() {
     restore()
 
 
+
     // ✅ Escuchar mensajes en tiempo real si el popup está abierto
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.onMessage.addListener((msg) => {
@@ -87,9 +93,15 @@ export default function App() {
           setComercio(msg.comercio)
           chrome.storage.local.set({ last_comercio: msg.comercio })
         }
+        // ✅ NUEVO — limpiar comercio si salió de tienda afiliada
+        if (msg.tipo === 'SIN_COMERCIO') {
+          setComercio(null)
+          setMonto(null)
+        }
       })
     }
   }, [])
+
 
 
   const handleLogin = (jwt, user) => {
@@ -102,6 +114,7 @@ export default function App() {
       localStorage.setItem('kueski_usuario', JSON.stringify(user))
     }
   }
+
 
 
   const handleLogout = () => {
@@ -120,6 +133,7 @@ export default function App() {
   }
 
 
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, background: 'var(--kueski-bg)' }}>
       <div style={{ color: 'var(--kueski-primary)', fontSize: 32 }}>⬡</div>
@@ -127,7 +141,9 @@ export default function App() {
   )
 
 
+
   if (!token) return <LoginView onLogin={handleLogin} />
+
 
 
     const renderView = () => {
@@ -160,14 +176,17 @@ export default function App() {
         />
         )
         case 'history': return <PurchaseHistory token={token} />
-        default: return (
+        default: return comercio ? ( // ✅ NUEVO — solo muestra HomeCard si hay comercio
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}
-            onVerPlan={() => navegarA('plan')} token={token} // ✅
+            onVerPlan={() => navegarA('plan')} token={token}
         />
+        ) : (
+        <NoComercioView /> // ✅ NUEVO — si no hay tienda afiliada
         )
     }
     }
+
 
 
   return (
@@ -185,10 +204,12 @@ export default function App() {
       </div>
 
 
+
       {/* Contenido */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {renderView()}
       </div>
+
 
 
       {/* NavBar */}
