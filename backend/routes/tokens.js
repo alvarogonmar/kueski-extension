@@ -8,6 +8,19 @@ const auth = require('../middleware/auth');
 router.post('/generar', auth, async (req, res) => {
   const { pin, comercio_id, monto, num_quincenas } = req.body;
   try {
+    // ✅ 1. Validar crédito disponible PRIMERO
+    const perfilResult = await pool.query(
+      'SELECT credito_disponible FROM perfil_financiero WHERE usuario_id = $1',
+      [req.usuario.id]
+    );
+    const disponible = parseFloat(perfilResult.rows[0]?.credito_disponible || 0);
+    if (monto > disponible) {
+      return res.status(400).json({
+        error: `Crédito insuficiente. Disponible: $${disponible.toLocaleString('es-MX')}`
+      });
+    }
+
+    // 2. Verificar PIN
     const pinResult = await pool.query(
       'SELECT pin_hash, intentos_fallidos, bloqueado_hasta FROM pins WHERE usuario_id = $1',
       [req.usuario.id]
@@ -45,7 +58,7 @@ router.post('/generar', auth, async (req, res) => {
       });
     }
 
-    // PIN correcto — resetear y generar token
+    // 3. PIN correcto — resetear intentos
     await pool.query(
       'UPDATE pins SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE usuario_id = $1',
       [req.usuario.id]
@@ -55,6 +68,7 @@ router.post('/generar', auth, async (req, res) => {
       [req.usuario.id, req.ip]
     );
 
+    // 4. Generar token CVV
     const tokenResult = await pool.query(
       `INSERT INTO tokens_pago (usuario_id, comercio_id, monto, num_quincenas)
        VALUES ($1, $2, $3, $4)
@@ -84,7 +98,7 @@ router.post('/canjear', auth, async (req, res) => {
       return res.status(410).json({ error: 'Token expirado' });
     }
 
-    // Calcular monto por quincena con tasa de la BD
+    // Calcular monto por quincena
     const configResult = await pool.query('SELECT tasa_interes_quincenal FROM configuracion_kueski LIMIT 1');
     const tasa = parseFloat(configResult.rows[0].tasa_interes_quincenal);
     const monto_quincena = parseFloat(
@@ -115,6 +129,12 @@ router.post('/canjear', auth, async (req, res) => {
         [compra_id, i, monto_quincena, fecha.toISOString().split('T')[0]]
       );
     }
+
+    // ✅ Descontar crédito usado
+    await pool.query(
+      'UPDATE perfil_financiero SET credito_usado = credito_usado + $1 WHERE usuario_id = $2',
+      [token.monto, token.usuario_id]
+    );
 
     res.status(201).json({ mensaje: 'Compra registrada correctamente', compra_id });
   } catch (e) {
