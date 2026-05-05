@@ -6,7 +6,8 @@ import PurchaseHistory from './components/PurchaseHistory.jsx'
 import NavBar from './components/NavBar.jsx'
 import PinView from './components/PinView.jsx'
 import CvvView from './components/CvvView.jsx'
-import NoComercioView from './components/NoComercioView.jsx' // ✅ NUEVO
+import NoComercioView from './components/NoComercioView.jsx'
+import ProfileView from './components/ProfileView.jsx'
 
 
 export default function App() {
@@ -176,6 +177,13 @@ export default function App() {
         />
         )
         case 'history': return <PurchaseHistory token={token} />
+        case 'profile': return (
+        <ProfileView
+            usuario={usuario}
+            token={token}
+            onVerHistorial={() => navegarA('history')}
+        />
+        )
         default: return comercio ? ( // ✅ NUEVO — solo muestra HomeCard si hay comercio
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}

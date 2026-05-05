@@ -84,4 +84,44 @@ router.post('/verificar', auth, async (req, res) => {
   }
 });
 
+// POST /api/pin/cambiar — verifica PIN actual y guarda el nuevo
+router.post('/cambiar', auth, async (req, res) => {
+  const { pin_actual, pin_nuevo } = req.body
+  if (!pin_nuevo || pin_nuevo.length !== 4 || isNaN(pin_nuevo)) {
+    return res.status(400).json({ error: 'El PIN nuevo debe ser de 4 dígitos numéricos' })
+  }
+  try {
+    const result = await pool.query(
+      'SELECT pin_hash, intentos_fallidos, bloqueado_hasta FROM pins WHERE usuario_id = $1',
+      [req.usuario.id]
+    )
+    if (!result.rows[0]) return res.status(404).json({ error: 'PIN no configurado' })
+
+    const pinData = result.rows[0]
+    if (pinData.bloqueado_hasta && new Date() < new Date(pinData.bloqueado_hasta)) {
+      return res.status(423).json({ error: 'Cuenta bloqueada', bloqueado_hasta: pinData.bloqueado_hasta })
+    }
+
+    const valido = await bcrypt.compare(pin_actual, pinData.pin_hash)
+    if (!valido) {
+      const intentos = pinData.intentos_fallidos + 1
+      const bloqueo = intentos >= 3 ? new Date(Date.now() + 15 * 60 * 1000) : null
+      await pool.query(
+        'UPDATE pins SET intentos_fallidos = $1, bloqueado_hasta = $2 WHERE usuario_id = $3',
+        [intentos, bloqueo, req.usuario.id]
+      )
+      return res.status(401).json({ error: 'PIN actual incorrecto', intentos_restantes: Math.max(0, 3 - intentos) })
+    }
+
+    const nuevoHash = await bcrypt.hash(pin_nuevo, 10)
+    await pool.query(
+      'UPDATE pins SET pin_hash = $1, intentos_fallidos = 0, bloqueado_hasta = NULL, updated_at = NOW() WHERE usuario_id = $2',
+      [nuevoHash, req.usuario.id]
+    )
+    res.json({ mensaje: 'PIN actualizado correctamente' })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 module.exports = router;

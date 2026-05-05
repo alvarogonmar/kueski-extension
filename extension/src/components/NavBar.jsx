@@ -1,10 +1,13 @@
 import React from 'react'
 
+
 const tabs = [
   { id: 'home', label: 'Inicio', icon: '⊙' },
   { id: 'plan', label: 'Plan', icon: '◈' },
   { id: 'history', label: 'Historial', icon: '☰' },
+  { id: 'profile', label: 'Perfil', icon: '◉' }, // ✅ NUEVO
 ]
+
 
 export default function NavBar({ view, setView }) {
   return (
