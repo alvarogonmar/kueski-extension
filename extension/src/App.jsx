@@ -7,6 +7,7 @@ import NavBar from './components/NavBar.jsx'
 import PinView from './components/PinView.jsx'
 import CvvView from './components/CvvView.jsx'
 
+
 export default function App() {
   const [token, setToken] = useState(null)
   const [usuario, setUsuario] = useState(null)
@@ -16,6 +17,26 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [pinConfirmado, setPinConfirmado] = useState(null)
   const [quincenasSeleccionadas, setQuincenasSeleccionadas] = useState(null)
+
+  // ✅ NUEVO — función centralizada para cambiar de vista y persistirla
+  const navegarA = (vista, extras = {}) => {
+    setView(vista)
+    if (extras.pin !== undefined) setPinConfirmado(extras.pin)
+    if (extras.quincenas !== undefined) setQuincenasSeleccionadas(extras.quincenas)
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.session.set({ vistaActiva: vista, datosVista: extras })
+    }
+  }
+
+  // ✅ NUEVO — limpiar vista guardada al terminar flujo
+  const limpiarVista = () => {
+    setView('home')
+    setPinConfirmado(null)
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.session.remove(['vistaActiva', 'datosVista'])
+    }
+  }
+
 
   useEffect(() => {
     const restore = async () => {
@@ -29,7 +50,16 @@ export default function App() {
             }
             if (result.last_comercio) setComercio(result.last_comercio)
             if (result.last_monto) setMonto(result.last_monto)
-            setLoading(false)
+
+            // ✅ NUEVO — restaurar vista si el popup se cerró a la mitad
+            chrome.storage.session.get(['vistaActiva', 'datosVista'], (session) => {
+              if (session.vistaActiva && session.vistaActiva !== 'home') {
+                setView(session.vistaActiva)
+                if (session.datosVista?.pin) setPinConfirmado(session.datosVista.pin)
+                if (session.datosVista?.quincenas) setQuincenasSeleccionadas(session.datosVista.quincenas)
+              }
+              setLoading(false)
+            })
           })
         } else {
           const jwt = localStorage.getItem('kueski_jwt')
@@ -44,6 +74,7 @@ export default function App() {
       }
     }
     restore()
+
 
     // ✅ Escuchar mensajes en tiempo real si el popup está abierto
     if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -60,6 +91,7 @@ export default function App() {
     }
   }, [])
 
+
   const handleLogin = (jwt, user) => {
     setToken(jwt)
     setUsuario(user)
@@ -70,6 +102,7 @@ export default function App() {
       localStorage.setItem('kueski_usuario', JSON.stringify(user))
     }
   }
+
 
   const handleLogout = () => {
     setToken(null)
@@ -83,7 +116,9 @@ export default function App() {
     }
     setComercio(null)
     setMonto(null)
+    limpiarVista() // ✅ NUEVO — también limpia la vista guardada
   }
+
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, background: 'var(--kueski-bg)' }}>
@@ -91,7 +126,9 @@ export default function App() {
     </div>
   )
 
+
   if (!token) return <LoginView onLogin={handleLogin} />
+
 
     const renderView = () => {
       switch (view) {
@@ -100,8 +137,8 @@ export default function App() {
             token={token}
             monto={monto}
             quincenas={quincenasSeleccionadas}
-            onSuccess={(pin) => { setPinConfirmado(pin); setView('cvv') }}
-            onCancel={() => setView('plan')}
+            onSuccess={(pin) => navegarA('cvv', { pin, quincenas: quincenasSeleccionadas })} // ✅
+            onCancel={() => navegarA('plan')} // ✅
         />
         )
         case 'cvv': return (
@@ -111,7 +148,7 @@ export default function App() {
             comercio={comercio}
             monto={monto}
             quincenas={quincenasSeleccionadas}
-            onDone={() => { setView('home'); setPinConfirmado(null) }}
+            onDone={() => limpiarVista()} // ✅
         />
         )
         case 'plan': return (
@@ -119,18 +156,19 @@ export default function App() {
             monto={monto}
             comercio={comercio}
             token={token}
-            onPagar={(q) => { setQuincenasSeleccionadas(q); setView('pin') }}
+            onPagar={(q) => navegarA('pin', { quincenas: q })} // ✅
         />
         )
         case 'history': return <PurchaseHistory token={token} />
         default: return (
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}
-            onVerPlan={() => setView('plan')} token={token}
+            onVerPlan={() => navegarA('plan')} token={token} // ✅
         />
         )
     }
     }
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--kueski-bg)' }}>
@@ -146,10 +184,12 @@ export default function App() {
         </button>
       </div>
 
+
       {/* Contenido */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {renderView()}
       </div>
+
 
       {/* NavBar */}
       <NavBar view={view} setView={setView} />

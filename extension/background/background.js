@@ -4,8 +4,15 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('Kueski Pay Assistant instalado')
 })
 
+// ✅ NUEVO — detecta cuando el usuario navega a otra tienda
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url) {
+    chrome.tabs.sendMessage(tabId, { type: 'URL_CHANGED', url: tab.url })
+      .catch(() => {}) // silencia error si la tab no tiene content script
+  }
+})
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // ✅ Guardar con claves separadas y explícitas
   if (message.tipo === 'COMERCIO') {
     chrome.storage.local.set({ last_comercio: message.comercio })
   }
