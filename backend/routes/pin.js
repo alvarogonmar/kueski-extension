@@ -124,4 +124,17 @@ router.post('/cambiar', auth, async (req, res) => {
   }
 })
 
+// GET /api/pin/existe — solo verifica si el usuario tiene PIN registrado
+router.get('/existe', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id FROM pins WHERE usuario_id = $1',
+      [req.usuario.id]
+    )
+    res.json({ existe: result.rows.length > 0 })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 module.exports = router;

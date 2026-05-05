@@ -1,12 +1,12 @@
 // HomeCard.jsx — sección de tokens corregida
 import React, { useEffect, useState } from 'react'
-import { calculadoraAPI, favoritosAPI } from '../services/api.js' // ✅ agregado favoritosAPI
+import { calculadoraAPI, favoritosAPI } from '../services/api.js'
 
 
-export default function HomeCard({ usuario, comercio, monto, onVerPlan, token }) {
+export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, nivelRiesgo, cuotasVencidas }) {
   const [perfil, setPerfil] = useState(null)
-  const [esFavorito, setEsFavorito] = useState(false) // ✅ NUEVO
-  const [loadingFav, setLoadingFav] = useState(false) // ✅ NUEVO
+  const [esFavorito, setEsFavorito] = useState(false)
+  const [loadingFav, setLoadingFav] = useState(false)
 
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
   }, [token])
 
 
-  // ✅ NUEVO — verificar si el comercio actual ya es favorito
+  // ✅ verificar si el comercio actual ya es favorito
   useEffect(() => {
     if (!token || !comercio?.dominio) return
     favoritosAPI.getAll(token)
@@ -30,7 +30,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
   }, [token, comercio])
 
 
-  // ✅ NUEVO — toggle favorito
+  // ✅ toggle favorito
   const toggleFavorito = async () => {
     if (!comercio?.dominio || loadingFav) return
     setLoadingFav(true)
@@ -49,6 +49,30 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* ✅ NUEVO — Banner de moroso */}
+      {cuotasVencidas > 0 && (
+        <div style={{
+          background: nivelRiesgo === 'alto' ? 'rgba(239,68,68,0.1)' : 'rgba(251,146,60,0.1)',
+          border: `1.5px solid ${nivelRiesgo === 'alto' ? 'rgba(239,68,68,0.4)' : 'rgba(251,146,60,0.4)'}`,
+          borderRadius: 'var(--radius-md)', padding: '12px 14px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 18 }}>{nivelRiesgo === 'alto' ? '🔴' : '🟠'}</span>
+            <span style={{ fontSize: 13, fontWeight: 700,
+              color: nivelRiesgo === 'alto' ? '#ef4444' : '#f97316' }}>
+              {nivelRiesgo === 'alto' ? 'Cuenta restringida' : 'Tienes pagos pendientes'}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', lineHeight: 1.5 }}>
+            Tienes {cuotasVencidas} cuota{cuotasVencidas > 1 ? 's' : ''} vencida{cuotasVencidas > 1 ? 's' : ''}.
+            {nivelRiesgo === 'alto'
+              ? ' No puedes generar nuevos CVV hasta ponerte al corriente.'
+              : ' Ponte al corriente para evitar restricciones.'}
+          </div>
+        </div>
+      )}
+
       {/* Saludo */}
       <div style={{
         background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
@@ -75,7 +99,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-blue)' }}>{comercio.nombre}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* ✅ NUEVO — botón de favorito */}
+            {/* ✅ botón de favorito */}
             <button
               onClick={toggleFavorito}
               disabled={loadingFav}
@@ -113,7 +137,17 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token })
           <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 12 }}>
             ${Number(monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
-          <button className="btn-primary" onClick={onVerPlan}>Ver plan de pagos →</button>
+          {/* ✅ NUEVO — deshabilitar botón si tiene cuenta restringida */}
+          <button
+            className={cuotasVencidas > 0 && nivelRiesgo === 'alto' ? 'btn-secondary' : 'btn-primary'}
+            onClick={cuotasVencidas > 0 && nivelRiesgo === 'alto' ? undefined : onVerPlan}
+            disabled={cuotasVencidas > 0 && nivelRiesgo === 'alto'}
+            style={{ opacity: cuotasVencidas > 0 && nivelRiesgo === 'alto' ? 0.5 : 1 }}
+          >
+            {cuotasVencidas > 0 && nivelRiesgo === 'alto'
+              ? '🔒 Cuenta restringida'
+              : 'Ver plan de pagos →'}
+          </button>
         </div>
       )}
 

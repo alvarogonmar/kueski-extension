@@ -9,6 +9,8 @@ import CvvView from './components/CvvView.jsx'
 import NoComercioView from './components/NoComercioView.jsx'
 import ProfileView from './components/ProfileView.jsx'
 import AlertasView from './components/AlertView.jsx'
+import { comprasAPI } from './services/api.js' // ✅ NUEVO
+
 
 
 export default function App() {
@@ -21,6 +23,9 @@ export default function App() {
   const [pinConfirmado, setPinConfirmado] = useState(null)
   const [quincenasSeleccionadas, setQuincenasSeleccionadas] = useState(null)
   const [alertasPendientes, setAlertasPendientes] = useState(0)
+  const [nivelRiesgo, setNivelRiesgo] = useState(null)
+  const [cuotasVencidas, setCuotasVencidas] = useState(0)
+
 
 
 
@@ -35,6 +40,7 @@ export default function App() {
   }
 
 
+
   // ✅ NUEVO — limpiar vista guardada al terminar flujo
   const limpiarVista = () => {
     setView('home')
@@ -43,6 +49,7 @@ export default function App() {
       chrome.storage.session.remove(['vistaActiva', 'datosVista'])
     }
   }
+
 
 
 
@@ -58,6 +65,7 @@ export default function App() {
             }
             if (result.last_comercio) setComercio(result.last_comercio)
             if (result.last_monto) setMonto(result.last_monto)
+
 
 
             // ✅ NUEVO — restaurar vista si el popup se cerró a la mitad
@@ -86,6 +94,7 @@ export default function App() {
 
 
 
+
     // ✅ Escuchar mensajes en tiempo real si el popup está abierto
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.onMessage.addListener((msg) => {
@@ -107,6 +116,19 @@ export default function App() {
   }, [])
 
 
+  // ✅ NUEVO — actualizar cuotas vencidas y nivel de riesgo cada que hay sesión
+  useEffect(() => {
+    if (!token) return
+    comprasAPI.actualizarVencidas(token)
+      .then(data => {
+        setNivelRiesgo(data.nivel_riesgo)
+        setCuotasVencidas(data.cuotas_vencidas)
+      })
+      .catch(() => {})
+  }, [token])
+
+
+
 
   const handleLogin = (jwt, user) => {
     setToken(jwt)
@@ -118,6 +140,7 @@ export default function App() {
       localStorage.setItem('kueski_usuario', JSON.stringify(user))
     }
   }
+
 
 
 
@@ -138,6 +161,7 @@ export default function App() {
 
 
 
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, background: 'var(--kueski-bg)' }}>
       <div style={{ color: 'var(--kueski-primary)', fontSize: 32 }}>⬡</div>
@@ -146,7 +170,9 @@ export default function App() {
 
 
 
+
   if (!token) return <LoginView onLogin={handleLogin} />
+
 
 
 
@@ -194,12 +220,15 @@ export default function App() {
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}
             onVerPlan={() => navegarA('plan')} token={token}
+            nivelRiesgo={nivelRiesgo}        // ✅ NUEVO
+            cuotasVencidas={cuotasVencidas}  // ✅ NUEVO
         />
         ) : (
         <NoComercioView /> // ✅ NUEVO — si no hay tienda afiliada
         )
     }
     }
+
 
 
 
@@ -219,10 +248,12 @@ export default function App() {
 
 
 
+
       {/* Contenido */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {renderView()}
       </div>
+
 
 
 

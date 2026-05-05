@@ -48,4 +48,42 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// POST /api/compras/actualizar-vencidas — marca cuotas y actualiza nivel_riesgo
+router.post('/actualizar-vencidas', auth, async (req, res) => {
+  try {
+    // 1. Marcar cuotas vencidas
+    await pool.query(`
+      UPDATE cuotas
+      SET estado = 'vencida'
+      WHERE estado = 'pendiente'
+        AND fecha_vencimiento < CURRENT_DATE
+        AND compra_id IN (
+          SELECT id FROM compras WHERE usuario_id = $1
+        )
+    `, [req.usuario.id])
+
+    // 2. Contar cuotas vencidas del usuario
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM cuotas cu
+      JOIN compras c ON c.id = cu.compra_id
+      WHERE c.usuario_id = $1 AND cu.estado = 'vencida'
+    `, [req.usuario.id])
+
+    const total = parseInt(countResult.rows[0].total)
+
+    // 3. Actualizar nivel_riesgo según cuotas vencidas
+    const nivel = total === 0 ? 'bajo' : total <= 2 ? 'medio' : 'alto'
+    await pool.query(`
+      UPDATE perfil_financiero
+      SET nivel_riesgo = $1, updated_at = NOW()
+      WHERE usuario_id = $2
+    `, [nivel, req.usuario.id])
+
+    res.json({ cuotas_vencidas: total, nivel_riesgo: nivel })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 module.exports = router;

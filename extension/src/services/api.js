@@ -29,6 +29,8 @@ export const comerciosAPI = {
 export const comprasAPI = {
   getAll: (token) => request('/compras', {}, token),
   getById: (token, id) => request(`/compras/${id}`, {}, token),
+   actualizarVencidas: (token) =>
+    request('/compras/actualizar-vencidas', { method: 'POST' }, token),
 }
 
 
@@ -53,6 +55,7 @@ export const pinAPI = {
       method: 'POST',
       body: JSON.stringify({ pin_actual, pin_nuevo })
     }, token),
+  existe: (token) => request('/pin/existe', {}, token), // ✅ NUEVO
 }
 
 
@@ -90,3 +93,4 @@ export const favoritosAPI = {
   remove: (token, dominio) =>
     request(`/favoritos/${dominio}`, { method: 'DELETE' }, token),
 }
+

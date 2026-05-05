@@ -11,6 +11,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [favoritos, setFavoritos] = useState([])
+  const [tienePin, setTienePin] = useState(true) // asume que sí tiene hasta verificar
 
 
   // ✅ NUEVO — estado de preferencias
@@ -19,19 +20,33 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   const [mensajePrefs, setMensajePrefs] = useState('')
 
 
+    useEffect(() => {
+      const cargar = async () => {
+        try {
+          const [data, favs] = await Promise.all([
+            preferenciasAPI.get(token),
+            favoritosAPI.getAll(token)
+          ])
+          if (data) setPrefs(data)
+          setFavoritos(favs || [])
+        } catch {}
+
+        // ✅ Verificar si ya tiene PIN sin contar intentos fallidos
+        try {
+          const { existe } = await pinAPI.existe(token)
+          setTienePin(existe)
+        } catch {
+          setTienePin(true) // si falla la consulta, asumir que sí tiene
+        }
+      }
+      cargar()
+    }, [])
+
+
+  // ✅ NUEVO — si no tiene PIN, saltar directo al paso 2 al abrir cambiarPin
   useEffect(() => {
-    const cargar = async () => {
-      try {
-        const [data, favs] = await Promise.all([
-          preferenciasAPI.get(token),
-          favoritosAPI.getAll(token)
-        ])
-        if (data) setPrefs(data)
-        setFavoritos(favs || [])
-      } catch {}
-    }
-    cargar()
-  }, [])
+    if (seccion === 'cambiarPin' && !tienePin) setPaso(2)
+  }, [seccion])
 
 
   const quitarFavorito = async (dominio) => {
@@ -65,21 +80,28 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       setError('El PIN debe ser de 4 dígitos')
       return
     }
-    if (pinNuevo === pinActual) {
+    // ✅ Solo validar que sea diferente si tiene PIN previo
+    if (tienePin && pinNuevo === pinActual) {
       setError('El PIN nuevo debe ser diferente al actual')
       return
     }
     setLoading(true)
     setError('')
     try {
-      await pinAPI.cambiar(token, pinActual, pinNuevo)
-      setMensaje('✅ PIN actualizado correctamente')
+      // ✅ NUEVO — usar crear o cambiar según si ya tiene PIN
+      if (tienePin) {
+        await pinAPI.cambiar(token, pinActual, pinNuevo)
+      } else {
+        await pinAPI.crear(token, pinNuevo)
+      }
+      setMensaje(tienePin ? '✅ PIN actualizado correctamente' : '✅ PIN creado correctamente')
+      setTienePin(true) // ✅ ya tiene PIN después de crear
       setSeccion(null)
       setPinActual('')
       setPinNuevo('')
       setPaso(1)
     } catch {
-      setError('No se pudo cambiar el PIN, intenta de nuevo')
+      setError(tienePin ? 'No se pudo cambiar el PIN, intenta de nuevo' : 'No se pudo crear el PIN, intenta de nuevo')
     } finally {
       setLoading(false)
     }
@@ -117,7 +139,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   }
 
 
-  // — Vista cambiar PIN —
+  // — Vista cambiar/crear PIN —
   if (seccion === 'cambiarPin') return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={volverPerfil}
@@ -127,10 +149,11 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       <div style={{ textAlign: 'center', marginBottom: 4 }}>
         <div style={{ fontSize: 32, marginBottom: 8 }}>🔒</div>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-text)' }}>
-          {paso === 1 ? 'Ingresa tu PIN actual' : 'Ingresa tu PIN nuevo'}
+          {/* ✅ Título dinámico según si tiene PIN y el paso */}
+          {!tienePin ? 'Crea tu PIN' : paso === 1 ? 'Ingresa tu PIN actual' : 'Ingresa tu PIN nuevo'}
         </div>
         <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', marginTop: 4 }}>
-          {paso === 1 ? 'Necesitamos verificar tu identidad' : 'Elige un PIN de 4 dígitos'}
+          {!tienePin ? 'Elige un PIN de 4 dígitos para tu cuenta' : paso === 1 ? 'Necesitamos verificar tu identidad' : 'Elige un PIN de 4 dígitos'}
         </div>
       </div>
       <input
@@ -150,7 +173,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       {error && <div style={{ color: 'var(--kueski-danger)', fontSize: 12, textAlign: 'center' }}>{error}</div>}
       <button className="btn-primary" disabled={loading}
         onClick={paso === 1 ? handlePinActual : handlePinNuevo}>
-        {loading ? 'Verificando...' : paso === 1 ? 'Continuar' : 'Guardar PIN nuevo'}
+        {loading ? 'Verificando...' : !tienePin ? 'Crear PIN' : paso === 1 ? 'Continuar' : 'Guardar PIN nuevo'}
       </button>
     </div>
   )
@@ -314,12 +337,13 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           borderBottom: '1px solid var(--kueski-border)' }}>
           Seguridad
         </div>
+        {/* ✅ Texto dinámico según si tiene PIN */}
         <button onClick={() => { setSeccion('cambiarPin'); setMensaje('') }} style={{
           width: '100%', padding: '14px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', background: 'none',
           color: 'var(--kueski-text)', fontSize: 14,
         }}>
-          <span>🔒 Cambiar PIN</span>
+          <span>🔒 {tienePin ? 'Cambiar PIN' : 'Crear PIN'}</span>
           <span style={{ color: 'var(--kueski-text-muted)' }}>→</span>
         </button>
       </div>
@@ -342,7 +366,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
         </button>
       </div>
 
-      {/* ✅ NUEVO — Mis favoritos (solo si hay alguno) */}
+      {/* ✅ Mis favoritos (solo si hay alguno) */}
       {favoritos.length > 0 && (
         <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
           border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>

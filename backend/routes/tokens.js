@@ -8,7 +8,24 @@ const auth = require('../middleware/auth');
 router.post('/generar', auth, async (req, res) => {
   const { pin, comercio_id, monto, num_quincenas } = req.body;
   try {
-    // ✅ 1. Validar crédito disponible PRIMERO
+
+    // Verificar si el usuario tiene cuotas vencidas
+    const vencidasResult = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM cuotas cu
+      JOIN compras c ON c.id = cu.compra_id
+      WHERE c.usuario_id = $1 AND cu.estado = 'vencida'
+    `, [req.usuario.id])
+
+    const cuotasVencidas = parseInt(vencidasResult.rows[0].total)
+    if (cuotasVencidas > 0) {
+      return res.status(403).json({
+        error: 'Tienes pagos vencidos',
+        detalle: `Tienes ${cuotasVencidas} cuota${cuotasVencidas > 1 ? 's' : ''} vencida${cuotasVencidas > 1 ? 's' : ''}. Ponte al corriente para seguir comprando.`,
+        cuotas_vencidas: cuotasVencidas
+      })
+    }
+    // Validar crédito disponible PRIMERO
     const perfilResult = await pool.query(
       'SELECT credito_disponible FROM perfil_financiero WHERE usuario_id = $1',
       [req.usuario.id]
@@ -20,7 +37,7 @@ router.post('/generar', auth, async (req, res) => {
       });
     }
 
-    // 2. Verificar PIN
+    // Verificar PIN
     const pinResult = await pool.query(
       'SELECT pin_hash, intentos_fallidos, bloqueado_hasta FROM pins WHERE usuario_id = $1',
       [req.usuario.id]
