@@ -14,15 +14,17 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Restaurar sesión
     const restore = async () => {
       try {
         if (typeof chrome !== 'undefined' && chrome.storage) {
-          chrome.storage.local.get(['jwt', 'usuario'], (result) => {
+          // ✅ Leer sesión + comercio y monto guardados por background.js
+          chrome.storage.local.get(['jwt', 'usuario', 'last_comercio', 'last_monto'], (result) => {
             if (result.jwt) {
               setToken(result.jwt)
               setUsuario(result.usuario)
             }
+            if (result.last_comercio) setComercio(result.last_comercio)
+            if (result.last_monto) setMonto(result.last_monto)
             setLoading(false)
           })
         } else {
@@ -39,11 +41,17 @@ export default function App() {
     }
     restore()
 
-    // Escuchar mensajes del content script
+    // ✅ Escuchar mensajes en tiempo real si el popup está abierto
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.onMessage.addListener((msg) => {
-        if (msg.tipo === 'MONTO') setMonto(msg.monto)
-        if (msg.tipo === 'COMERCIO') setComercio(msg.comercio)
+        if (msg.tipo === 'MONTO') {
+          setMonto(msg.monto)
+          chrome.storage.local.set({ last_monto: msg.monto })
+        }
+        if (msg.tipo === 'COMERCIO') {
+          setComercio(msg.comercio)
+          chrome.storage.local.set({ last_comercio: msg.comercio })
+        }
       })
     }
   }, [])
@@ -63,11 +71,14 @@ export default function App() {
     setToken(null)
     setUsuario(null)
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.remove(['jwt', 'usuario'])
+      // ✅ Al salir también limpia comercio y monto
+      chrome.storage.local.remove(['jwt', 'usuario', 'last_comercio', 'last_monto'])
     } else {
       localStorage.removeItem('kueski_jwt')
       localStorage.removeItem('kueski_usuario')
     }
+    setComercio(null)
+    setMonto(null)
   }
 
   if (loading) return (
@@ -82,7 +93,7 @@ export default function App() {
     switch (view) {
       case 'plan': return <PaymentPlan monto={monto} comercio={comercio} token={token} />
       case 'history': return <PurchaseHistory token={token} />
-      default: return <HomeCard usuario={usuario} comercio={comercio} monto={monto} onVerPlan={() => setView('plan')} />
+      default: return <HomeCard usuario={usuario} comercio={comercio} monto={monto} onVerPlan={() => setView('plan')} token={token} />
     }
   }
 
