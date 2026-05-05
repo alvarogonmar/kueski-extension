@@ -8,6 +8,7 @@ import PinView from './components/PinView.jsx'
 import CvvView from './components/CvvView.jsx'
 import NoComercioView from './components/NoComercioView.jsx'
 import ProfileView from './components/ProfileView.jsx'
+import AlertasView from './components/AlertView.jsx'
 
 
 export default function App() {
@@ -19,6 +20,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [pinConfirmado, setPinConfirmado] = useState(null)
   const [quincenasSeleccionadas, setQuincenasSeleccionadas] = useState(null)
+  const [alertasPendientes, setAlertasPendientes] = useState(0)
+
 
 
   // ✅ NUEVO — función centralizada para cambiar de vista y persistirla
@@ -184,6 +187,9 @@ export default function App() {
             onVerHistorial={() => navegarA('history')}
         />
         )
+        case 'alertas': return (
+        <AlertasView token={token} onCargado={(n) => setAlertasPendientes(n)} />
+        )
         default: return comercio ? ( // ✅ NUEVO — solo muestra HomeCard si hay comercio
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}
@@ -221,7 +227,7 @@ export default function App() {
 
 
       {/* NavBar */}
-      <NavBar view={view} setView={setView} />
+      <NavBar view={view} setView={setView} alertasPendientes={alertasPendientes} />
     </div>
   )
 }
