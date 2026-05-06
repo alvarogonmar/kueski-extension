@@ -536,3 +536,182 @@ Al abrir Perfil:
 | Perfil de moroso (detección y bloqueo)   | ✅           |
 | Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
 | Pruebas finales y demo                   | ⏳ Pendiente |
+
+# Reporte de Avance — Sesión 5 (Parte 2)
+
+**Continuación de:** Sesión 5 Parte 1 (Perfil Moroso + Crear PIN)
+
+---
+
+## Lo que se implementó en esta parte
+
+### 1. Cuotas vencidas en sección de Alertas
+
+Se modificó `AlertView.jsx` para separar visualmente las cuotas vencidas de las próximas a vencer.
+
+**Archivo modificado:**
+
+- `src/components/AlertView.jsx`
+
+**Cambios:**
+
+- Se agregó estado `vencidas` separado de `cuotas` (próximas)
+- Nueva sección **"⚠️ Pagos vencidos"** con fondo rojo que aparece arriba de todo
+- Badge de conteo rojo con número de cuotas vencidas
+- `onCargado` ahora suma vencidas + próximas en 7 días para el badge del NavBar
+- Corrección de `hoy.setHours(0,0,0,0)` para evitar falsos positivos por zona horaria
+
+**Lógica de separación:**
+
+```
+compras.forEach → cuotas.forEach
+  cuota.estado === 'pagada'           → historial
+  cuota.estado === 'vencida'
+    || fechaVence < hoy               → vencidasArr (sección roja)
+  cuota.estado === 'pendiente'
+    && fechaVence <= en30dias         → proximasArr
+```
+
+**`App.jsx` — sin cambios**, el `onCargado` ya estaba correcto:
+
+```jsx
+<AlertasView token={token} onCargado={(n) => setAlertasPendientes(n)} />
+```
+
+---
+
+### 2. Fix de fechas de quincenas
+
+Se detectó que la lógica en `tokens.js` sumaba **+15 días fijos** en lugar de calcular quincenas reales del calendario (día 1 y día 15 de cada mes).
+
+**Causa:**
+
+```js
+fecha.setDate(fecha.getDate() + i * 15); // ❌ incorrecto
+```
+
+**Solución — función `siguienteQuincena`:**
+
+```js
+const siguienteQuincena = (fecha) => {
+  const d = new Date(fecha);
+  if (d.getDate() < 15) {
+    d.setDate(15);
+  } else {
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(1);
+  }
+  return d;
+};
+```
+
+---
+
+## Perfiles para la Demo
+
+Se crearon 3 perfiles para presentar al equipo de Kueski:
+
+| Usuario        | Email               | Perfil                         | Nivel   |
+| -------------- | ------------------- | ------------------------------ | ------- |
+| Tu cuenta      | alvaro@test.mx      | Crédito disponible, sin deudas | `bajo`  |
+| Carlos Moroso  | moroso@kueski.mx    | 2-3 cuotas vencidas            | `medio` |
+| Roberto Moroso | muymoroso@kueski.mx | 5+ cuotas vencidas, bloqueado  | `alto`  |
+
+---
+
+### Perfil: Carlos Moroso — Nivel MEDIO (id: 3)
+
+**Compra:** $2,400 en 6 quincenas de $400 en Amazon  
+**Cuotas:**
+
+| #   | Fecha      | Estado             |
+| --- | ---------- | ------------------ |
+| 1   | 2026-03-15 | vencida            |
+| 2   | 2026-04-01 | vencida            |
+| 3   | 2026-04-15 | vencida / pagada\* |
+| 4   | 2026-05-01 | pendiente          |
+| 5   | 2026-05-15 | pendiente          |
+| 6   | 2026-06-01 | pendiente          |
+
+> \*Cuota 3 marcada como `pagada` si se quiere mantener nivel `medio` (2 vencidas), o `vencida` para subir a `alto` (3 vencidas).
+
+**Lo que se ve en la demo:**
+
+- Banner 🟠 naranja en HomeCard
+- Sección "⚠️ Pagos vencidos" en Alertas
+- Puede intentar comprar pero el CVV se bloquea con error 403
+
+---
+
+### Perfil: Roberto Moroso — Nivel ALTO (id: 4)
+
+**Compra:** $4,800 en 8 quincenas de $600 en Amazon  
+**Cuotas:**
+
+| #   | Fecha      | Estado      |
+| --- | ---------- | ----------- |
+| 1   | 2026-01-15 | vencida     |
+| 2   | 2026-02-01 | vencida     |
+| 3   | 2026-02-15 | vencida     |
+| 4   | 2026-03-01 | vencida     |
+| 5   | 2026-03-15 | vencida     |
+| 6   | 2026-04-01 | pendiente\* |
+| 7   | 2026-04-15 | pendiente\* |
+| 8   | 2026-05-01 | pendiente\* |
+
+> \*Cuotas 6, 7, 8 también están vencidas por fecha — el sistema las detecta y marca como `vencida` automáticamente al abrir sesión con `actualizar-vencidas`.
+
+**Lo que se ve en la demo:**
+
+- Banner 🔴 rojo en HomeCard
+- 5+ cuotas en sección "⚠️ Pagos vencidos" en Alertas
+- CVV **completamente bloqueado** (error 403 antes de pedir PIN)
+- Botón "Ver plan de pagos" deshabilitado
+
+---
+
+## SQL de corrección aplicado en BD
+
+```sql
+-- Corregir fechas cuotas Carlos (id: 3)
+UPDATE cuotas SET fecha_vencimiento = '2026-04-15' WHERE compra_id = 'UUID_CARLOS' AND numero_cuota = 3;
+UPDATE cuotas SET fecha_vencimiento = '2026-05-01' WHERE compra_id = 'UUID_CARLOS' AND numero_cuota = 4;
+UPDATE cuotas SET fecha_vencimiento = '2026-05-15' WHERE compra_id = 'UUID_CARLOS' AND numero_cuota = 5;
+UPDATE cuotas SET fecha_vencimiento = '2026-06-01' WHERE compra_id = 'UUID_CARLOS' AND numero_cuota = 6;
+
+-- Corregir fechas cuotas Roberto (id: 4)
+UPDATE cuotas SET fecha_vencimiento = '2026-04-01' WHERE compra_id = 'UUID_ROBERTO' AND numero_cuota = 6;
+UPDATE cuotas SET fecha_vencimiento = '2026-04-15' WHERE compra_id = 'UUID_ROBERTO' AND numero_cuota = 7;
+UPDATE cuotas SET fecha_vencimiento = '2026-05-01' WHERE compra_id = 'UUID_ROBERTO' AND numero_cuota = 8;
+```
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                   | Estado       |
+| ---------------------------------------- | ------------ |
+| Backend API REST completo                | ✅           |
+| Autenticación JWT                        | ✅           |
+| Base de datos Supabase (12 tablas)       | ✅           |
+| Detección de comercio y precio           | ✅           |
+| Simulador de quincenas                   | ✅           |
+| Flujo PIN → CVV → Confirmación           | ✅           |
+| Validación y descuento de crédito        | ✅           |
+| Historial de compras                     | ✅           |
+| Cambio de tienda sin recargar            | ✅           |
+| Persistencia de vista al cerrar popup    | ✅           |
+| CVV no reinicia countdown al reabrir     | ✅           |
+| NoComercioView para páginas no afiliadas | ✅           |
+| Sección Alertas con vencimientos         | ✅           |
+| Cuotas vencidas separadas en Alertas     | ✅           |
+| Sección Perfil completa                  | ✅           |
+| Cambio de PIN (2 pasos)                  | ✅           |
+| Crear PIN para usuarios nuevos           | ✅           |
+| Preferencias (email, push, días)         | ✅           |
+| Favoritos (agregar, quitar, ver)         | ✅           |
+| Perfil de moroso (detección y bloqueo)   | ✅           |
+| Perfiles de demo configurados en BD      | ✅           |
+| Fix quincenas reales en tokens.js        | ✅           |
+| Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
+| Pruebas finales y demo                   | ⏳ Pendiente |
