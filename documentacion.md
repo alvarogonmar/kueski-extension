@@ -331,6 +331,14 @@ Pantalla de login y registro.
 - Registro: `POST /api/auth/register`
 - En login exitoso entrega `token` y `usuario` a `App.jsx`.
 - En registro exitoso regresa al tab de login.
+- Usa `extension/public/kueski_logo.png` como logo principal.
+- Tiene una interfaz blanca, compacta y minimalista.
+- Permite mostrar/ocultar la contrasena.
+- Valida antes de llamar al backend:
+  - Nombre requerido en registro, minimo 3 caracteres.
+  - Email requerido y con formato valido.
+  - Contrasena requerida.
+  - En registro, contrasena minimo 6 caracteres.
 
 ### `HomeCard.jsx`
 
@@ -397,6 +405,26 @@ Vista de alertas.
   - Historial de cuotas pagadas.
 - Calcula badge de alertas sumando vencidas y proximas a vencer en 7 dias o menos.
 - Permite activar/desactivar notificaciones push actualizando preferencias.
+- Permite pagar cuotas pendientes o vencidas desde cada alerta.
+- Abre `PaymentModal.jsx` para elegir metodo de pago.
+- Al confirmar pago, llama al backend para marcar la cuota como `pagada`.
+- Mantiene historial de alertas con maximo 5 pagos recientes.
+- Incluye cuotas pagadas de compras `completada`, para que el historial no desaparezca al reabrir la extension.
+
+### `PaymentModal.jsx`
+
+Modal de pago usado desde Alertas.
+
+- Titulo: `Elegir metodo de pago`.
+- Opciones: Tarjeta y Deposito en OXXO.
+- Tarjeta solicita nombre del titular, numero, fecha de vencimiento y CVV.
+- OXXO genera una referencia numerica de 10 a 14 digitos.
+- Valida tarjeta:
+  - Nombre minimo de 3 caracteres.
+  - Numero de tarjeta numerico entre 16 y 19 digitos.
+  - Fecha con formato `MM/AA` y mes entre `01` y `12`.
+  - CVV numerico de 3 o 4 digitos.
+- No guarda datos sensibles de tarjeta en la base de datos.
 
 ### `ProfileView.jsx`
 
@@ -814,6 +842,53 @@ Respuesta:
 }
 ```
 
+#### `POST /api/compras/cuotas/:id/pagar`
+
+Requiere JWT.
+
+Registra el pago de una cuota desde Alertas.
+
+Body actual desde frontend:
+
+```json
+{
+  "metodo_pago": "tarjeta",
+  "referencia_pago": null
+}
+```
+
+Comportamiento:
+
+- Abre una transaccion con PostgreSQL.
+- Valida que la cuota exista y pertenezca al usuario autenticado.
+- Bloquea la fila de cuota con `FOR UPDATE`.
+- Rechaza cuotas ya pagadas.
+- Actualiza `cuotas.estado = 'pagada'`.
+- Si todas las cuotas de la compra estan pagadas, actualiza `compras.estado = 'completada'`.
+- Recalcula cuotas vencidas del usuario.
+- Actualiza `perfil_financiero.nivel_riesgo`.
+
+Respuesta:
+
+```json
+{
+  "mensaje": "Pago registrado correctamente",
+  "cuota": {
+    "id": 123,
+    "compra_id": 10,
+    "numero_cuota": 2,
+    "monto": 450,
+    "fecha_vencimiento": "2026-05-15",
+    "estado": "pagada"
+  },
+  "compra_completada": false,
+  "cuotas_vencidas": 0,
+  "nivel_riesgo": "bajo"
+}
+```
+
+Nota: el endpoint no almacena datos de tarjeta ni referencia en columnas dedicadas; actualmente persiste el estado de la cuota y recalcula el riesgo.
+
 ### Preferencias
 
 #### `GET /api/preferencias`
@@ -1054,6 +1129,8 @@ Estados observados:
 - `pagada`
 - `vencida`
 
+Una cuota puede pasar a `pagada` desde Alertas usando `POST /api/compras/cuotas/:id/pagar`.
+
 ### `preferencias_usuario`
 
 Uso:
@@ -1292,6 +1369,25 @@ Clases reutilizables:
 - Separacion de pagos vencidos en alertas.
 - Perfiles de demo.
 
+### Sesion 6
+
+- Creacion de `documentacion.md`.
+- Boton `Pagar` en cuotas pendientes y vencidas dentro de Alertas.
+- Nuevo componente `PaymentModal.jsx`.
+- Pago por Tarjeta u OXXO dentro de la extension.
+- Referencia OXXO generada en frontend.
+- Validaciones de tarjeta.
+- Endpoint `POST /api/compras/cuotas/:id/pagar`.
+- Persistencia de pagos de cuotas en BD.
+- Cambio automatico de compra a `completada` si todas sus cuotas estan pagadas.
+- Recalculo de `nivel_riesgo` al pagar cuotas.
+- Historial de alertas persistente al reabrir la extension.
+- Historial limitado a 5 alertas recientes.
+- Rediseño minimalista de login/registro.
+- Uso de `public/kueski_logo.png`.
+- Validaciones locales de login/registro.
+- SQL recomendado para limpiar cuentas de prueba.
+
 ## 17. Pendientes y brechas conocidas
 
 ### Pendientes funcionales
@@ -1301,6 +1397,7 @@ Clases reutilizables:
 - Completar pruebas finales en Chrome con tiendas reales.
 - Preparar demo final.
 - Llenar `backend/db/schema.sql` con el esquema real de la base de datos.
+- Si se requiere auditoria completa de pagos, agregar columnas como `pagada_en`, `metodo_pago` y `referencia_pago` a `cuotas` o a una tabla dedicada de pagos.
 
 ### Brechas detectadas entre documentacion de avance y codigo
 
@@ -1308,6 +1405,7 @@ Clases reutilizables:
 - `avances.md` menciona que las quincenas reales de calendario ya fueron corregidas, pero `backend/routes/tokens.js` sigue usando intervalos de 15 dias.
 - `AlertView.jsx` actualiza preferencias push mandando solo `notif_push`; el backend hace upsert esperando tambien `notif_email` y `dias_antes_recordatorio`.
 - `PaymentPlan.jsx` tiene fallback local con nombres de campos que no coinciden con los renderizados.
+- El historial de alertas usa `pagada_en` solo cuando el pago ocurre en la sesion actual; al recargar, si la BD no tiene columna `pagada_en`, ordena con `fecha_vencimiento`.
 - Hay rutas duplicadas de favoritos:
   - `/api/comercios/favoritos`
   - `/api/favoritos`
@@ -1356,7 +1454,9 @@ Luego cargar `extension/dist` en `chrome://extensions`.
 11. Confirmar compra.
 12. Revisar Historial.
 13. Revisar Alertas.
-14. Revisar Perfil, Preferencias y Favoritos.
+14. Pagar una cuota desde Alertas.
+15. Cerrar y reabrir la extension para confirmar que el historial de alertas conserva el pago.
+16. Revisar Perfil, Preferencias y Favoritos.
 
 ## 19. Criterios de entrega
 
@@ -1373,9 +1473,13 @@ El proyecto puede considerarse funcional cuando:
 - El CVV se genera y expira correctamente.
 - La compra se confirma y aparece en historial.
 - Las cuotas se crean en base de datos.
+- Las cuotas se pueden pagar desde Alertas.
+- El pago de una cuota actualiza la base de datos.
 - El credito usado aumenta despues de comprar.
 - Las cuotas vencidas se detectan.
 - Las alertas muestran vencidas y proximas.
+- El historial de alertas muestra maximo 5 pagos recientes.
+- Login y registro validan campos requeridos antes de llamar al backend.
 - Favoritos y preferencias se guardan.
 
 ## 20. Archivos clave
@@ -1387,6 +1491,7 @@ El proyecto puede considerarse funcional cuando:
 - `backend/routes/calculadora.js`: simulacion y perfil financiero.
 - `backend/routes/tokens.js`: CVV, canje y creacion de compras/cuotas.
 - `backend/routes/compras.js`: historial y morosidad.
+- `backend/routes/compras.js`: pago de cuotas desde Alertas.
 - `backend/routes/pin.js`: PIN, intentos y bloqueo.
 - `backend/routes/preferencias.js`: configuracion del usuario.
 - `backend/routes/favoritos.js`: favoritos usados por la extension.
@@ -1400,4 +1505,6 @@ El proyecto puede considerarse funcional cuando:
 - `extension/src/components/PinView.jsx`: confirmacion por PIN.
 - `extension/src/components/CvvView.jsx`: CVV virtual.
 - `extension/src/components/AlertView.jsx`: alertas.
+- `extension/src/components/PaymentModal.jsx`: modal de pago de cuotas.
+- `extension/src/components/LoginView.jsx`: login, registro y validaciones.
 - `extension/src/components/ProfileView.jsx`: perfil, PIN, preferencias y favoritos.

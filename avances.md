@@ -715,3 +715,336 @@ UPDATE cuotas SET fecha_vencimiento = '2026-05-01' WHERE compra_id = 'UUID_ROBER
 | Fix quincenas reales en tokens.js        | ✅           |
 | Recordatorios con notificaciones Chrome  | ⏳ Pendiente |
 | Pruebas finales y demo                   | ⏳ Pendiente |
+
+# Reporte de Avance — Sesión 6
+
+## **Continuación de:** Reporte Sesión 5 (Parte 2)
+
+**Fecha:** Mayo 2026
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Documentación completa del proyecto
+
+Se creó un archivo nuevo de documentación general del proyecto.
+
+**Archivo creado:**
+
+- `documentacion.md`
+
+**Contenido agregado:**
+
+- Resumen general del proyecto
+- Stack tecnológico
+- Estructura completa de carpetas
+- Configuración del backend
+- Configuración de la extensión
+- Arquitectura funcional
+- Flujo principal de compra
+- Componentes del frontend
+- Servicio de API
+- Endpoints REST
+- Modelo de datos esperado
+- Autenticación y seguridad
+- Persistencia con `chrome.storage.local` y `chrome.storage.session`
+- Estados de riesgo
+- Diseño visual
+- Pendientes y brechas conocidas
+- Guía rápida para correr el proyecto
+- Criterios de entrega
+- Archivos clave
+
+---
+
+### 2. Botón Pagar en cuotas pendientes y vencidas
+
+Se agregó un botón **Pagar** dentro de la sección de Alertas para cada cuota pendiente o vencida.
+
+**Archivos modificados:**
+
+- `extension/src/components/AlertView.jsx`
+- `extension/src/services/api.js`
+- `backend/routes/compras.js`
+
+**Archivo creado:**
+
+- `extension/src/components/PaymentModal.jsx`
+
+**Comportamiento implementado:**
+
+```
+Alertas
+  → Cuota pendiente/vencida
+    → [Pagar]
+      → Modal "Elegir método de pago"
+        → Tarjeta
+        → Depósito en OXXO
+          → Confirmar pago
+            → Backend actualiza cuota en BD
+            → UI se actualiza inmediatamente
+            → Historial muestra el pago
+```
+
+---
+
+### 3. Modal de pago
+
+Se creó `PaymentModal.jsx` para manejar el flujo de pago dentro de la extensión.
+
+**Opciones disponibles:**
+
+- Tarjeta
+- Depósito en OXXO
+
+**Tarjeta — campos solicitados:**
+
+- Nombre del titular
+- Número de tarjeta
+- Fecha de vencimiento
+- CVV
+
+**Depósito en OXXO:**
+
+- Genera una referencia numérica aleatoria de 10 a 14 dígitos.
+- Muestra la referencia en pantalla.
+
+**Validaciones agregadas:**
+
+| Campo             | Validación                             |
+| ----------------- | -------------------------------------- |
+| Nombre titular    | Mínimo 3 caracteres                    |
+| Número de tarjeta | Solo números, entre 16 y 19 dígitos    |
+| Fecha             | Formato `MM/AA`, mes entre `01` y `12` |
+| CVV               | Solo números, 3 o 4 dígitos            |
+
+**Nota:** No se conecta una pasarela bancaria externa; el flujo registra el pago en la base de datos del proyecto.
+
+---
+
+### 4. Persistencia del pago en base de datos
+
+Se agregó un endpoint para que el pago de una cuota no sea solo visual, sino que también quede persistido en PostgreSQL/Supabase.
+
+**Endpoint creado:**
+
+```http
+POST /api/compras/cuotas/:id/pagar
+```
+
+**Qué hace el backend:**
+
+- Valida que la cuota pertenezca al usuario autenticado.
+- Rechaza cuotas inexistentes.
+- Rechaza cuotas ya pagadas.
+- Cambia `cuotas.estado` a `pagada`.
+- Si todas las cuotas de una compra quedan pagadas, cambia `compras.estado` a `completada`.
+- Recalcula cuotas vencidas del usuario.
+- Actualiza `perfil_financiero.nivel_riesgo`.
+
+**Respuesta esperada:**
+
+```json
+{
+  "mensaje": "Pago registrado correctamente",
+  "cuota": {},
+  "compra_completada": true,
+  "cuotas_vencidas": 0,
+  "nivel_riesgo": "bajo"
+}
+```
+
+---
+
+### 5. Historial de alertas persistente
+
+Se corrigió el problema donde un pago aparecía en el historial solo mientras el popup seguía abierto, pero desaparecía al cerrar y abrir la extensión.
+
+**Causa:**
+
+`AlertView.jsx` ignoraba por completo las compras con estado `completada`, por lo que al reabrir la extensión no procesaba sus cuotas pagadas.
+
+**Solución:**
+
+- Las compras `completada` y `cancelada` ya no generan alertas pendientes/vencidas.
+- Pero sus cuotas `pagada` sí se agregan al historial de alertas.
+
+**Resultado:**
+
+El historial de pagos se mantiene al cerrar y volver a abrir la extensión.
+
+---
+
+### 6. Máximo 5 alertas recientes en historial
+
+Se ajustó el historial de alertas para mostrar máximo 5 registros.
+
+**Cambios:**
+
+- Se agregó `MAX_HISTORIAL_ALERTAS = 5`.
+- Al cargar datos desde BD, el historial se ordena y limita a 5.
+- Al pagar una cuota en la sesión actual, también se mantiene el límite de 5.
+- Se prioriza la fecha más reciente usando:
+
+```js
+cuota.pagada_en || cuota.fecha_vencimiento;
+```
+
+---
+
+### 7. Limpieza de cuenta de prueba
+
+Se documentó el SQL necesario para limpiar una cuenta de pruebas y dejarla como nueva.
+
+**Objetivo:**
+
+- Sin compras
+- Sin cuotas
+- Sin tokens de pago
+- Sin recordatorios
+- Crédito de $15,000
+- `credito_usado = 0`
+- `nivel_riesgo = 'bajo'`
+
+**SQL recomendado:**
+
+```sql
+BEGIN;
+
+DELETE FROM recordatorios
+WHERE usuario_id = (
+  SELECT id FROM usuarios WHERE email = 'TU_EMAIL_AQUI'
+);
+
+DELETE FROM cuotas
+WHERE compra_id IN (
+  SELECT id
+  FROM compras
+  WHERE usuario_id = (
+    SELECT id FROM usuarios WHERE email = 'TU_EMAIL_AQUI'
+  )
+);
+
+DELETE FROM compras
+WHERE usuario_id = (
+  SELECT id FROM usuarios WHERE email = 'TU_EMAIL_AQUI'
+);
+
+DELETE FROM tokens_pago
+WHERE usuario_id = (
+  SELECT id FROM usuarios WHERE email = 'TU_EMAIL_AQUI'
+);
+
+UPDATE perfil_financiero
+SET
+  limite_credito = 15000,
+  credito_usado = 0,
+  nivel_riesgo = 'bajo',
+  updated_at = NOW()
+WHERE usuario_id = (
+  SELECT id FROM usuarios WHERE email = 'TU_EMAIL_AQUI'
+);
+
+COMMIT;
+```
+
+---
+
+### 8. Rediseño de Login y Registro
+
+Se rediseñó la pantalla de inicio de sesión y registro para acercarla al estilo visual de Kueski.
+
+**Archivo modificado:**
+
+- `extension/src/components/LoginView.jsx`
+
+**Asset usado:**
+
+- `extension/public/kueski_logo.png`
+
+**Cambios visuales:**
+
+- Fondo blanco
+- Logo real de Kueski como imagen
+- Interfaz más minimalista
+- Inputs más compactos
+- Botón azul redondeado
+- Cambio entre login y registro con link inferior
+- Se eliminó el link "¿Olvidaste tu contraseña?"
+
+**Validaciones agregadas:**
+
+| Campo      | Validación                                 |
+| ---------- | ------------------------------------------ |
+| Nombre     | Requerido en registro, mínimo 3 caracteres |
+| Email      | Requerido y con formato válido             |
+| Contraseña | Requerida                                  |
+| Contraseña | En registro, mínimo 6 caracteres           |
+
+**Resultado:**
+
+Ya no permite crear cuentas ni iniciar sesión con campos vacíos o inválidos.
+
+---
+
+## Bugs encontrados y corregidos
+
+### Bug 1 — Pago solo visual
+
+**Problema:** Al pagar una cuota desde Alertas, el cambio solo ocurría en estado local de React. Al cerrar y abrir la extensión se perdía.
+
+**Solución:** Se creó `POST /api/compras/cuotas/:id/pagar` y se conectó desde `comprasAPI.pagarCuota()`.
+
+---
+
+### Bug 2 — Historial desaparecía al reabrir extensión
+
+**Problema:** Las compras `completada` se omitían por completo al reconstruir alertas.
+
+**Solución:** Se siguieron excluyendo de pendientes/vencidas, pero se conservaron sus cuotas pagadas para el historial.
+
+---
+
+### Bug 3 — Registro permitía campos vacíos
+
+**Problema:** El frontend permitía llamar `/api/auth/register` aunque faltaran datos.
+
+**Solución:** Se agregaron validaciones locales en `LoginView.jsx`.
+
+---
+
+### Bug 4 — Textos visibles de simulación
+
+**Problema:** El modal mostraba palabras como "simulado", aunque el flujo debía sentirse como pago real dentro de la demo.
+
+**Solución:** Se eliminaron textos visibles de simulación y se renombró el componente a `PaymentModal.jsx`.
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                      | Estado       |
+| ------------------------------------------- | ------------ |
+| Backend API REST completo                   | ✅           |
+| Autenticación JWT                           | ✅           |
+| Base de datos Supabase                      | ✅           |
+| Detección de comercio y precio              | ✅           |
+| Simulador de quincenas                      | ✅           |
+| Flujo PIN → CVV → Confirmación              | ✅           |
+| Validación y descuento de crédito           | ✅           |
+| Historial de compras                        | ✅           |
+| Sección Alertas                             | ✅           |
+| Pagos de cuotas desde Alertas               | ✅           |
+| Persistencia de pagos en BD                 | ✅           |
+| Historial de alertas persistente            | ✅           |
+| Historial limitado a 5 alertas recientes    | ✅           |
+| Modal de pago con Tarjeta/OXXO              | ✅           |
+| Validaciones de tarjeta                     | ✅           |
+| Login/Register rediseñado                   | ✅           |
+| Validaciones de Login/Register              | ✅           |
+| Preferencias                                | ✅           |
+| Favoritos                                   | ✅           |
+| Perfil de moroso                            | ✅           |
+| Documentación completa (`documentacion.md`) | ✅           |
+| Pruebas finales y demo                      | ⏳ Pendiente |
