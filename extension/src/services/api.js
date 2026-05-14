@@ -31,6 +31,11 @@ export const comprasAPI = {
   getById: (token, id) => request(`/compras/${id}`, {}, token),
    actualizarVencidas: (token) =>
     request('/compras/actualizar-vencidas', { method: 'POST' }, token),
+  pagarCuota: (token, id, body = {}) =>
+    request(`/compras/cuotas/${id}/pagar`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }, token),
 }
 
 
@@ -93,4 +98,3 @@ export const favoritosAPI = {
   remove: (token, dominio) =>
     request(`/favoritos/${dominio}`, { method: 'DELETE' }, token),
 }
-

@@ -1,5 +1,18 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { comprasAPI, preferenciasAPI } from '../services/api.js'
+import PaymentModal from './PaymentModal.jsx'
+
+const MAX_HISTORIAL_ALERTAS = 5
+
+const diasRestantes = (fecha) => {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const vence = new Date(fecha)
+  vence.setHours(0, 0, 0, 0)
+  return Math.ceil((vence - hoy) / (1000 * 60 * 60 * 24))
+}
+
+const fechaHistorial = (cuota) => new Date(cuota.pagada_en || cuota.fecha_vencimiento)
 
 export default function AlertasView({ token, onCargado }) {
   const [vencidas, setVencidas] = useState([])
@@ -7,6 +20,8 @@ export default function AlertasView({ token, onCargado }) {
   const [historial, setHistorial] = useState([])
   const [notifActivas, setNotifActivas] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [cuotaPago, setCuotaPago] = useState(null)
+  const [mensajePago, setMensajePago] = useState('')
 
   useEffect(() => {
     const cargar = async () => {
@@ -25,7 +40,7 @@ export default function AlertasView({ token, onCargado }) {
         en30dias.setDate(hoy.getDate() + 30)
 
         compras.forEach(compra => {
-          if (compra.estado === 'completada' || compra.estado === 'cancelada') return
+          const compraCerrada = compra.estado === 'completada' || compra.estado === 'cancelada'
           if (!compra.cuotas) return
 
           compra.cuotas.forEach(cuota => {
@@ -43,9 +58,9 @@ export default function AlertasView({ token, onCargado }) {
 
             if (cuota.estado === 'pagada') {
               enviadas.push(item)
-            } else if (cuota.estado === 'vencida' || fechaVence < hoy) {
+            } else if (!compraCerrada && (cuota.estado === 'vencida' || fechaVence < hoy)) {
               vencidasArr.push(item)
-            } else if (cuota.estado === 'pendiente' && fechaVence <= en30dias) {
+            } else if (!compraCerrada && cuota.estado === 'pendiente' && fechaVence <= en30dias) {
               proximasArr.push(item)
             }
           })
@@ -53,11 +68,11 @@ export default function AlertasView({ token, onCargado }) {
 
         vencidasArr.sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento))
         proximasArr.sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento))
-        enviadas.sort((a, b) => new Date(b.fecha_vencimiento) - new Date(a.fecha_vencimiento))
+        enviadas.sort((a, b) => fechaHistorial(b) - fechaHistorial(a))
 
         setVencidas(vencidasArr)
         setCuotas(proximasArr)
-        setHistorial(enviadas.slice(0, 5))
+        setHistorial(enviadas.slice(0, MAX_HISTORIAL_ALERTAS))
         setNotifActivas(prefs?.notif_push ?? true)
 
         if (onCargado) onCargado(
@@ -76,15 +91,40 @@ export default function AlertasView({ token, onCargado }) {
     try {
       await preferenciasAPI.update(token, { notif_push: !notifActivas })
       setNotifActivas(n => !n)
-    } catch {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
-  const diasRestantes = (fecha) => {
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
-    const vence = new Date(fecha)
-    vence.setHours(0, 0, 0, 0)
-    return Math.ceil((vence - hoy) / (1000 * 60 * 60 * 24))
+  const actualizarBadge = (vencidasActuales, proximasActuales) => {
+    if (onCargado) {
+      onCargado(
+        vencidasActuales.length + proximasActuales.filter(c => diasRestantes(c.fecha_vencimiento) <= 7).length
+      )
+    }
+  }
+
+  const confirmarPago = async (cuotaPagada) => {
+    await comprasAPI.pagarCuota(token, cuotaPagada.id, {
+      metodo_pago: cuotaPagada.metodo_pago,
+      referencia_pago: cuotaPagada.referencia_pago,
+    })
+
+    const quitarCuota = cuota => cuota.id !== cuotaPagada.id
+    const nuevasVencidas = vencidas.filter(quitarCuota)
+    const nuevasCuotas = cuotas.filter(quitarCuota)
+
+    setVencidas(nuevasVencidas)
+    setCuotas(nuevasCuotas)
+    setHistorial(prev =>
+      [cuotaPagada, ...prev.filter(c => c.id !== cuotaPagada.id)]
+        .sort((a, b) => fechaHistorial(b) - fechaHistorial(a))
+        .slice(0, MAX_HISTORIAL_ALERTAS)
+    )
+    setCuotaPago(null)
+    setMensajePago('Pago realizado con éxito')
+    actualizarBadge(nuevasVencidas, nuevasCuotas)
+    setTimeout(() => setMensajePago(''), 3000)
   }
 
   const badgeColor = (dias) => {
@@ -104,6 +144,13 @@ export default function AlertasView({ token, onCargado }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {cuotaPago && (
+        <PaymentModal
+          cuota={cuotaPago}
+          onClose={() => setCuotaPago(null)}
+          onConfirm={confirmarPago}
+        />
+      )}
 
       {/* Toggle notificaciones */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -121,6 +168,21 @@ export default function AlertasView({ token, onCargado }) {
           {notifActivas ? 'Notif. activas' : 'Notif. inactivas'}
         </button>
       </div>
+
+      {mensajePago && (
+        <div style={{
+          background: 'rgba(0,176,80,0.1)',
+          border: '1.5px solid rgba(0,176,80,0.3)',
+          borderRadius: 'var(--radius-md)',
+          padding: '10px 14px',
+          color: 'var(--kueski-primary)',
+          fontSize: 13,
+          fontWeight: 700,
+          textAlign: 'center',
+        }}>
+          {mensajePago}
+        </div>
+      )}
 
       {/* ===== SECCIÓN: Pagos vencidos ===== */}
       {vencidas.length > 0 && (
@@ -168,6 +230,13 @@ export default function AlertasView({ token, onCargado }) {
                   }}>
                     Vencida
                   </div>
+                  <button onClick={() => setCuotaPago(cuota)} style={{
+                    marginTop: 8, padding: '6px 12px', borderRadius: 8,
+                    background: 'var(--kueski-primary)', color: 'white',
+                    fontSize: 11, fontWeight: 800,
+                  }}>
+                    Pagar
+                  </button>
                 </div>
               </div>
             ))}
@@ -223,6 +292,13 @@ export default function AlertasView({ token, onCargado }) {
                     }}>
                       {dias < 0 ? 'Vencida' : `en ${dias} día${dias === 1 ? '' : 's'}`}
                     </div>
+                    <button onClick={() => setCuotaPago(cuota)} style={{
+                      marginTop: 8, padding: '6px 12px', borderRadius: 8,
+                      background: 'var(--kueski-primary)', color: 'white',
+                      fontSize: 11, fontWeight: 800,
+                    }}>
+                      Pagar
+                    </button>
                   </div>
                 </div>
               )
@@ -253,6 +329,12 @@ export default function AlertasView({ token, onCargado }) {
                 }}>✓</div>
                 <div style={{ flex: 1, fontSize: 13, color: 'var(--kueski-text)' }}>
                   Pago de <strong>{cuota.comercio}</strong> registrado
+                  {cuota.metodo_pago && (
+                    <div style={{ fontSize: 11, color: 'var(--kueski-text-muted)', marginTop: 2 }}>
+                      {cuota.metodo_pago === 'oxxo' ? 'Depósito en OXXO' : 'Tarjeta'}
+                      {cuota.referencia_pago ? ` · Ref. ${cuota.referencia_pago}` : ''}
+                    </div>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--kueski-text-muted)', flexShrink: 0 }}>
                   {formatFecha(cuota.fecha_vencimiento)}

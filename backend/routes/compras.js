@@ -86,4 +86,89 @@ router.post('/actualizar-vencidas', auth, async (req, res) => {
   }
 })
 
+// POST /api/compras/cuotas/:id/pagar — registra el pago de una cuota
+router.post('/cuotas/:id/pagar', auth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const cuotaResult = await client.query(
+      `SELECT cu.id, cu.compra_id, cu.numero_cuota, cu.monto, cu.fecha_vencimiento, cu.estado,
+              c.usuario_id, c.estado AS compra_estado
+       FROM cuotas cu
+       JOIN compras c ON c.id = cu.compra_id
+       WHERE cu.id = $1 AND c.usuario_id = $2
+       FOR UPDATE`,
+      [req.params.id, req.usuario.id]
+    )
+
+    if (cuotaResult.rows.length === 0) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Cuota no encontrada' })
+    }
+
+    const cuota = cuotaResult.rows[0]
+    if (cuota.estado === 'pagada') {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'La cuota ya está pagada' })
+    }
+
+    const cuotaPagadaResult = await client.query(
+      `UPDATE cuotas
+       SET estado = 'pagada'
+       WHERE id = $1
+       RETURNING id, compra_id, numero_cuota, monto, fecha_vencimiento, estado`,
+      [cuota.id]
+    )
+
+    const pendientesResult = await client.query(
+      `SELECT COUNT(*) AS total
+       FROM cuotas
+       WHERE compra_id = $1 AND estado <> 'pagada'`,
+      [cuota.compra_id]
+    )
+
+    const compraCompletada = parseInt(pendientesResult.rows[0].total) === 0
+    if (compraCompletada) {
+      await client.query(
+        `UPDATE compras
+         SET estado = 'completada'
+         WHERE id = $1 AND usuario_id = $2`,
+        [cuota.compra_id, req.usuario.id]
+      )
+    }
+
+    const vencidasResult = await client.query(
+      `SELECT COUNT(*) AS total
+       FROM cuotas cu
+       JOIN compras c ON c.id = cu.compra_id
+       WHERE c.usuario_id = $1 AND cu.estado = 'vencida'`,
+      [req.usuario.id]
+    )
+
+    const cuotasVencidas = parseInt(vencidasResult.rows[0].total)
+    const nivel = cuotasVencidas === 0 ? 'bajo' : cuotasVencidas <= 2 ? 'medio' : 'alto'
+    await client.query(
+      `UPDATE perfil_financiero
+       SET nivel_riesgo = $1, updated_at = NOW()
+       WHERE usuario_id = $2`,
+      [nivel, req.usuario.id]
+    )
+
+    await client.query('COMMIT')
+    res.json({
+      mensaje: 'Pago registrado correctamente',
+      cuota: cuotaPagadaResult.rows[0],
+      compra_completada: compraCompletada,
+      cuotas_vencidas: cuotasVencidas,
+      nivel_riesgo: nivel
+    })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    res.status(500).json({ error: e.message })
+  } finally {
+    client.release()
+  }
+})
+
 module.exports = router;
