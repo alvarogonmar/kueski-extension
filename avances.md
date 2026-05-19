@@ -613,7 +613,7 @@ Se crearon 3 perfiles para presentar al equipo de Kueski:
 
 | Usuario        | Email               | Perfil                         | Nivel   |
 | -------------- | ------------------- | ------------------------------ | ------- |
-| Tu cuenta      | alvaro@test.mx      | Crédito disponible, sin deudas | `bajo`  |
+| Tu cuenta      | alvaro@test.com     | Crédito disponible, sin deudas | `bajo`  |
 | Carlos Moroso  | moroso@kueski.mx    | 2-3 cuotas vencidas            | `medio` |
 | Roberto Moroso | muymoroso@kueski.mx | 5+ cuotas vencidas, bloqueado  | `alto`  |
 
