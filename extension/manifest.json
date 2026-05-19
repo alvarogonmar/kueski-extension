@@ -26,6 +26,16 @@
     }
   ],
   "permissions": ["storage", "notifications", "activeTab"],
+  "web_accessible_resources": [
+    {
+      "resources": ["kueski_logo.png"],
+      "matches": [
+        "*://*.amazon.com.mx/*",
+        "*://*.liverpool.com.mx/*",
+        "*://*.walmart.com.mx/*"
+      ]
+    }
+  ],
   "host_permissions": [
     "*://*.amazon.com.mx/*",
     "*://*.liverpool.com.mx/*",

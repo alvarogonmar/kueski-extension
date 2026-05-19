@@ -39,6 +39,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
 
+  if (message.tipo === 'ABRIR_POPUP') {
+    chrome.action.openPopup()
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }))
+    return true
+  }
+
+
   sendResponse({ ok: true })
   return true
 })
