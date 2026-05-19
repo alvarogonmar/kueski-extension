@@ -9,19 +9,22 @@
         '#priceblock_ourprice'
       ]
     },
-    'liverpool.com.mx': {
-      nombre: 'Liverpool',
+    'elpalaciodehierro.com': {
+      nombre: 'Palacio de Hierro',
       selectores: [
-        '.a-product__paragraphDiscountPrice',
-        '.a-product__paragraphRegularPrice',
+        '.b-product_price-sales .b-product_price-value',
+        '.b-product_price-value[content]',
+        '[data-js-line-item-price-sales] .b-product_price-value',
       ]
     },
-    'walmart.com.mx': {
-      nombre: 'Walmart',
+    'chedraui.com.mx': {
+      nombre: 'Chedraui',
       selectores: [
         '[itemprop="price"]',
-        '.price-characteristic',
-        '[class*="price-group"]'
+        '[data-testid*="price"]',
+        '[class*="price"]',
+        '[class*="Price"]',
+        '.price',
       ]
     },
   }
@@ -175,6 +178,9 @@
     for (const selector of comercio.selectores) {
       const el = document.querySelector(selector)
       if (el) {
+        const contentMonto = parsearMonto(el.getAttribute('content'))
+        if (contentMonto && contentMonto >= 10 && contentMonto <= 500000) return contentMonto
+
         // Clonar y remover superíndices antes de leer el texto
         const clon = el.cloneNode(true)
         clon.querySelectorAll('sup, .superindex, [class*="super"]').forEach(e => e.remove())

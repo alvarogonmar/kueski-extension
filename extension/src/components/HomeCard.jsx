@@ -120,7 +120,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
           padding: '14px 16px', border: '1px solid var(--kueski-border)',
           textAlign: 'center', color: 'var(--kueski-text-muted)', fontSize: 13,
         }}>
-          Visita Amazon, Liverpool o Walmart para activar Kueski Pay
+          Visita Amazon, Palacio de Hierro o Chedraui para activar Kueski Pay
         </div>
       )}
 

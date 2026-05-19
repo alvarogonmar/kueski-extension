@@ -9,7 +9,7 @@ chrome.runtime.onInstalled.addListener(() => {
 // ✅ NUEVO — detecta cuando el usuario navega a otra tienda
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
-    const afiliadas = ['amazon.com.mx', 'liverpool.com.mx', 'walmart.com.mx']
+    const afiliadas = ['amazon.com.mx', 'elpalaciodehierro.com', 'chedraui.com.mx']
     const esAfiliada = afiliadas.some(d => tab.url.includes(d))
 
     if (!esAfiliada) {

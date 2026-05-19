@@ -1,8 +1,8 @@
 export default function NoComercioView() {
   const tiendas = [
     { nombre: 'Amazon', url: 'https://amazon.com.mx', logo: '📦' },
-    { nombre: 'Liverpool', url: 'https://liverpool.com.mx', logo: '🛍️' },
-    { nombre: 'Walmart', url: 'https://walmart.com.mx', logo: '🛒' },
+    { nombre: 'Palacio de Hierro', url: 'https://www.elpalaciodehierro.com', logo: '🛍️' },
+    { nombre: 'Chedraui', url: 'https://www.chedraui.com.mx', logo: '🛒' },
   ]
 
   return (

@@ -19,8 +19,8 @@
     {
       "matches": [
         "*://*.amazon.com.mx/*",
-        "*://*.liverpool.com.mx/*",
-        "*://*.walmart.com.mx/*"
+        "*://*.elpalaciodehierro.com/*",
+        "*://*.chedraui.com.mx/*"
       ],
       "js": ["content/content.js"]
     }
@@ -31,15 +31,15 @@
       "resources": ["kueski_logo.png"],
       "matches": [
         "*://*.amazon.com.mx/*",
-        "*://*.liverpool.com.mx/*",
-        "*://*.walmart.com.mx/*"
+        "*://*.elpalaciodehierro.com/*",
+        "*://*.chedraui.com.mx/*"
       ]
     }
   ],
   "host_permissions": [
     "*://*.amazon.com.mx/*",
-    "*://*.liverpool.com.mx/*",
-    "*://*.walmart.com.mx/*",
+    "*://*.elpalaciodehierro.com/*",
+    "*://*.chedraui.com.mx/*",
     "http://localhost:3001/*"
   ]
 }

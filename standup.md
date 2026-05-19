@@ -16,7 +16,7 @@ La idea es reducir fricción: el usuario no tiene que salirse del comercio ni bu
 
 ## 2. Qué problema resolvemos
 
-- El usuario puede estar comprando en Amazon, Liverpool o Walmart y no recordar que puede usar Kueski Pay.
+- El usuario puede estar comprando en Amazon, Palacio de Hierro o Chedraui y no recordar que puede usar Kueski Pay.
 - El usuario necesita ver rápidamente si tiene crédito disponible y cuánto pagaría por quincena.
 - El usuario necesita una experiencia de pago y seguimiento simple dentro del navegador.
 - El usuario necesita alertas claras de próximos vencimientos o pagos vencidos.
@@ -52,7 +52,7 @@ La idea es reducir fricción: el usuario no tiene que salirse del comercio ni bu
 | Backend Express | Funcional |
 | Base de datos Supabase/PostgreSQL | Conectada |
 | Login y registro | Funcional con validaciones |
-| Detección de comercio | Funcional en Amazon, Liverpool y Walmart |
+| Detección de comercio | Funcional en Amazon, Palacio de Hierro y Chedraui |
 | Detección de monto | Funcional con selectores por tienda |
 | Simulación de quincenas | Funcional |
 | PIN de seguridad | Funcional |
@@ -138,7 +138,7 @@ Página de tienda afiliada
 ## 7. Flujo principal de compra
 
 ```text
-Usuario abre Amazon/Liverpool/Walmart
+Usuario abre Amazon/Palacio de Hierro/Chedraui
   -> Extensión detecta comercio y precio
   -> Usuario abre popup
   -> Home muestra crédito disponible
@@ -300,7 +300,7 @@ Relaciones clave:
 
 ### ¿Cómo detectan el comercio?
 
-El content script revisa `location.hostname` y compara contra dominios afiliados: `amazon.com.mx`, `liverpool.com.mx` y `walmart.com.mx`.
+El content script revisa `location.hostname` y compara contra dominios afiliados: `amazon.com.mx`, `elpalaciodehierro.com` y `chedraui.com.mx`.
 
 ### ¿Cómo detectan el precio?
 
@@ -368,7 +368,7 @@ Se guarda la relación entre usuario y comercio. Desde Home se puede agregar/qui
 
 Es suficiente para un prototipo funcional, pero en producción habría que robustecerlo con reglas por tienda, pruebas constantes y quizá integración con APIs o eventos del checkout cuando existan.
 
-### ¿Qué pasa si Amazon/Liverpool/Walmart cambian sus clases CSS?
+### ¿Qué pasa si Amazon/Palacio de Hierro/Chedraui cambian sus clases CSS?
 
 La detección puede fallar. Por eso los selectores están aislados por comercio en `content.js`, para actualizarlos rápido. Para producción se requeriría monitoreo y fallback.
 

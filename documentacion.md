@@ -12,8 +12,8 @@ El proyecto esta dividido en dos aplicaciones:
 La extension esta pensada para funcionar en:
 
 - Amazon Mexico: `amazon.com.mx`
-- Liverpool: `liverpool.com.mx`
-- Walmart Mexico: `walmart.com.mx`
+- Palacio de Hierro: `elpalaciodehierro.com`
+- Chedraui Mexico: `chedraui.com.mx`
 
 El flujo principal cubre:
 
@@ -216,8 +216,8 @@ El archivo `extension/manifest.json` define:
   - `activeTab`
 - Host permissions:
   - `amazon.com.mx`
-  - `liverpool.com.mx`
-  - `walmart.com.mx`
+  - `elpalaciodehierro.com`
+  - `chedraui.com.mx`
   - `http://localhost:3001/*`
 
 ### Carga en Chrome
@@ -258,14 +258,17 @@ amazon.com.mx:
   #price_inside_buybox
   #priceblock_ourprice
 
-liverpool.com.mx:
-  .a-product__paragraphDiscountPrice
-  .a-product__paragraphRegularPrice
+elpalaciodehierro.com:
+  .b-product_price-sales .b-product_price-value
+  .b-product_price-value[content]
+  [data-js-line-item-price-sales] .b-product_price-value
 
-walmart.com.mx:
+chedraui.com.mx:
   [itemprop="price"]
-  .price-characteristic
-  [class*="price-group"]
+  [data-testid*="price"]
+  [class*="price"]
+  [class*="Price"]
+  .price
 ```
 
 ### Background service worker
@@ -447,7 +450,7 @@ Vista de perfil.
 Vista para paginas no afiliadas.
 
 - Informa que la tienda actual no es afiliada.
-- Muestra accesos a Amazon, Liverpool y Walmart.
+- Muestra accesos a Amazon, Palacio de Hierro y Chedraui.
 
 ### `NavBar.jsx`
 

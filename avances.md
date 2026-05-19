@@ -9,7 +9,7 @@
 
 ## Resumen Ejecutivo
 
-Se construyó desde cero una extensión de Chrome funcional que detecta automáticamente el precio de productos en tiendas afiliadas (Amazon, Liverpool, Walmart), simula planes de pago en quincenas conectando con un backend REST propio, y gestiona sesiones de usuario con autenticación JWT. El proyecto cubre tanto el backend completo como el frontend React del popup.
+Se construyó desde cero una extensión de Chrome funcional que detecta automáticamente el precio de productos en tiendas afiliadas (Amazon, Palacio de Hierro, Chedraui), simula planes de pago en quincenas conectando con un backend REST propio, y gestiona sesiones de usuario con autenticación JWT. El proyecto cubre tanto el backend completo como el frontend React del popup.
 
 ---
 
@@ -117,13 +117,13 @@ Se construyó el popup completo con los siguientes componentes:
 **Problema:** El content script mandaba el mensaje `COMERCIO` y `MONTO` cuando la página cargaba, pero si el popup estaba cerrado en ese momento, nadie escuchaba el mensaje y se perdía.  
 **Solución:** Se configuró `background.js` para guardar `last_comercio` y `last_monto` en `chrome.storage.local`, y `App.jsx` los lee al montarse, garantizando que el popup siempre tenga los datos aunque se abra después.
 
-### 6. Precios de Liverpool mal parseados
+### 6. Precios de tienda afiliada mal parseados
 
-**Problema:** El selector agarraba el texto completo del contenedor, que incluía centavos como superíndice (`<sup>`) y en productos con descuento tomaba ambos precios concatenados, generando números como `$32,630,003,099,850.00`.  
+**Problema:** El selector agarraba el texto completo del contenedor, que incluía centavos como superíndice (`<sup>`) y en productos con descuento podía tomar varios valores concatenados.  
 **Solución:**
 
 - Se clona el elemento DOM antes de leer el texto y se eliminan todos los `<sup>` con `querySelectorAll('sup').forEach(e => e.remove())`.
-- Se reemplazaron los selectores genéricos de Liverpool por las clases exactas del sitio: `.a-product__paragraphDiscountPrice` (precio con descuento) y `.a-product__paragraphRegularPrice` (precio normal), priorizando el precio con descuento.
+- Se reemplazaron selectores genéricos por selectores específicos de precio final cuando el comercio lo requiere.
 - Se agregó validación de rango `>= 10 && <= 500,000` para descartar números inválidos.
 
 ### 7. `tokensAPI.get()` ya no existe
@@ -147,8 +147,8 @@ Se construyó el popup completo con los siguientes componentes:
 | Base de datos Supabase            | ✅ Conectada con datos de prueba         |
 | Popup React                       | ✅ Compilado y cargado en Chrome         |
 | Detección de comercio (Amazon)    | ✅ Funcionando                           |
-| Detección de comercio (Liverpool) | ✅ Funcionando con selectores corregidos |
-| Detección de comercio (Walmart)   | ✅ Funcionando                           |
+| Detección de comercio (Palacio de Hierro) | ✅ Funcionando con selectores corregidos |
+| Detección de comercio (Chedraui)   | ✅ Funcionando                           |
 | Detección de precio con descuento | ✅ Corregido (toma precio final)         |
 | Simulador de quincenas            | ✅ Conectado al backend real             |
 | Historial de compras              | ✅ Funcionando                           |
@@ -163,7 +163,7 @@ Se construyó el popup completo con los siguientes componentes:
 - Agregar vista de Preferencias
 - Conectar recordatorios de pago con notificaciones de Chrome
 - Agregar comercios favoritos desde el popup
-- Pruebas en Chrome con usuario real en Amazon, Liverpool y Walmart
+- Pruebas en Chrome con usuario real en Amazon, Palacio de Hierro y Chedraui
 - Preparar demo para entrega del ciclo
 
 ## Reporte Sesión 2
@@ -1048,3 +1048,176 @@ Ya no permite crear cuentas ni iniciar sesión con campos vacíos o inválidos.
 | Perfil de moroso                            | ✅           |
 | Documentación completa (`documentacion.md`) | ✅           |
 | Pruebas finales y demo                      | ⏳ Pendiente |
+
+# Reporte de Avance — Sesión 7
+
+## **Continuación de:** Reporte Sesión 6
+
+**Fecha:** Mayo 2026
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Cambio de comercios afiliados
+
+Se actualizó la extensión para manejar como comercios afiliados principales a Amazon, Palacio de Hierro y Chedraui.
+
+**Dominios actuales:**
+
+| Comercio           | Dominio                    |
+| ------------------ | -------------------------- |
+| Amazon             | `amazon.com.mx`            |
+| Palacio de Hierro  | `elpalaciodehierro.com`    |
+| Chedraui           | `chedraui.com.mx`          |
+
+**Archivos modificados:**
+
+- `extension/manifest.json`
+- `extension/content/content.js`
+- `extension/background/background.js`
+- `extension/src/components/NoComercioView.jsx`
+- `extension/src/components/HomeCard.jsx`
+
+---
+
+### 2. Actualización de permisos de la extensión
+
+Se actualizaron los `matches`, `host_permissions` y `web_accessible_resources` en `manifest.json` para que la extensión funcione en:
+
+```json
+"*://*.amazon.com.mx/*"
+"*://*.elpalaciodehierro.com/*"
+"*://*.chedraui.com.mx/*"
+```
+
+---
+
+### 3. Launcher flotante dentro de la tienda
+
+Se agregó un botón circular flotante con el logo de Kueski dentro de las tiendas afiliadas.
+
+**Archivo modificado:**
+
+- `extension/content/content.js`
+
+**Comportamiento:**
+
+- Aparece en la parte superior derecha de la tienda.
+- Usa `kueski_logo.png`.
+- Se inyecta con Shadow DOM para evitar conflictos con estilos de la tienda.
+- Al hacer click, manda el mensaje `ABRIR_POPUP`.
+- `background.js` recibe el mensaje y ejecuta `chrome.action.openPopup()`.
+
+**Archivos relacionados:**
+
+- `extension/content/content.js`
+- `extension/background/background.js`
+- `extension/manifest.json`
+
+---
+
+### 4. Fix de precio con descuento en Palacio de Hierro
+
+Se detectó que Palacio de Hierro muestra dos precios cuando hay descuento: precio original y precio de venta.
+
+**Problema inicial:**
+
+El selector genérico tomaba información equivocada del DOM. En una primera corrección se intentó tomar el menor precio válido, pero eso podía capturar el porcentaje de descuento desde:
+
+```html
+class="b-discount_badge-copy"
+```
+
+**Solución final:**
+
+Se quitaron los selectores genéricos para Palacio y se apuntó directamente al precio de venta:
+
+```js
+'.b-product_price-sales .b-product_price-value'
+'.b-product_price-value[content]'
+'[data-js-line-item-price-sales] .b-product_price-value'
+```
+
+Además, el extractor ahora lee primero el atributo `content`, por ejemplo:
+
+```html
+content="19600.00"
+```
+
+Esto permite tomar correctamente `$19,600.00` como precio final con descuento.
+
+---
+
+### 5. Actualización de textos visibles
+
+Se actualizaron textos dentro de la extensión:
+
+- `NoComercioView.jsx`
+- `HomeCard.jsx`
+
+Ahora el mensaje de tiendas afiliadas queda como:
+
+```text
+Amazon, Palacio de Hierro o Chedraui
+```
+
+---
+
+### 6. SQL para actualizar base de datos
+
+Se preparó el SQL para actualizar la tabla `comercios` en Supabase.
+
+```sql
+UPDATE comercios
+SET
+  nombre = 'Palacio de Hierro',
+  dominio = 'elpalaciodehierro.com',
+  logo_url = NULL,
+  activo = true
+WHERE id = ID_DEL_COMERCIO_A_REEMPLAZAR;
+
+UPDATE comercios
+SET
+  nombre = 'Chedraui',
+  dominio = 'chedraui.com.mx',
+  logo_url = NULL,
+  activo = true
+WHERE id = ID_DEL_COMERCIO_A_REEMPLAZAR;
+```
+
+> Nota: primero se recomienda consultar `SELECT id, nombre, dominio FROM comercios ORDER BY id;` y actualizar por `id` para evitar tocar registros incorrectos.
+
+---
+
+## Bugs encontrados y corregidos
+
+### Bug 1 — Palacio tomaba porcentaje de descuento como precio
+
+**Problema:** El extractor podía leer el porcentaje de descuento en lugar del precio final.
+
+**Solución:** Se eliminaron selectores genéricos para Palacio y se usaron selectores específicos del precio de venta.
+
+---
+
+### Bug 2 — Precio con descuento no se priorizaba
+
+**Problema:** En productos con descuento, se podía tomar el precio original.
+
+**Solución:** Se priorizó `.b-product_price-sales .b-product_price-value` y el atributo `content`.
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                      | Estado |
+| ------------------------------------------- | ------ |
+| Amazon como comercio afiliado               | ✅     |
+| Palacio de Hierro como comercio afiliado    | ✅     |
+| Chedraui como comercio afiliado             | ✅     |
+| Launcher flotante dentro de tienda          | ✅     |
+| Apertura del popup desde launcher           | ✅     |
+| Precio con descuento en Palacio de Hierro   | ✅     |
+| Manifest actualizado                        | ✅     |
+| Textos visibles actualizados                | ✅     |
+| Build de extensión                          | ✅     |
