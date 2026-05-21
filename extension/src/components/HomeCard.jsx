@@ -1,5 +1,5 @@
 // HomeCard.jsx — sección de tokens corregida
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { calculadoraAPI, favoritosAPI } from '../services/api.js'
 
 
@@ -7,6 +7,11 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
   const [perfil, setPerfil] = useState(null)
   const [esFavorito, setEsFavorito] = useState(false)
   const [loadingFav, setLoadingFav] = useState(false)
+
+  const creditoDisponible = Number(perfil?.credito_disponible)
+  const perfilEnEvaluacion = !!perfil && !Number.isFinite(creditoDisponible)
+  const cuentaRestringida = cuotasVencidas > 0 && nivelRiesgo === 'alto'
+  const puedeVerPlan = !cuentaRestringida && !perfilEnEvaluacion
 
 
   useEffect(() => {
@@ -26,7 +31,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
         const existe = favs.some(f => f.dominio === comercio.dominio)
         setEsFavorito(existe)
       })
-      .catch(() => {})
+      .catch(() => setEsFavorito(false))
   }, [token, comercio])
 
 
@@ -42,7 +47,9 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
         await favoritosAPI.add(token, comercio.dominio)
         setEsFavorito(true)
       }
-    } catch {}
+    } catch {
+      setEsFavorito(esFavorito)
+    }
     setLoadingFav(false)
   }
 
@@ -139,21 +146,23 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
           </div>
           {/* ✅ NUEVO — deshabilitar botón si tiene cuenta restringida */}
           <button
-            className={cuotasVencidas > 0 && nivelRiesgo === 'alto' ? 'btn-secondary' : 'btn-primary'}
-            onClick={cuotasVencidas > 0 && nivelRiesgo === 'alto' ? undefined : onVerPlan}
-            disabled={cuotasVencidas > 0 && nivelRiesgo === 'alto'}
-            style={{ opacity: cuotasVencidas > 0 && nivelRiesgo === 'alto' ? 0.5 : 1 }}
+            className={!puedeVerPlan ? 'btn-secondary' : 'btn-primary'}
+            onClick={puedeVerPlan ? onVerPlan : undefined}
+            disabled={!puedeVerPlan}
+            style={{ opacity: !puedeVerPlan ? 0.5 : 1 }}
           >
-            {cuotasVencidas > 0 && nivelRiesgo === 'alto'
+            {cuentaRestringida
               ? '🔒 Cuenta restringida'
-              : 'Ver plan de pagos →'}
+              : perfilEnEvaluacion
+                ? 'Perfil en evaluación'
+                : 'Ver plan de pagos →'}
           </button>
         </div>
       )}
 
 
       {/* Crédito disponible (viene de perfil_financiero) */}
-      {perfil && (
+      {perfil && !perfilEnEvaluacion && (
         <div style={{
           background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
           padding: '14px 16px', border: '1px solid var(--kueski-border)',
@@ -161,8 +170,45 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
         }}>
           <span style={{ fontSize: 13, color: 'var(--kueski-text-muted)' }}>Crédito disponible</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--kueski-primary)' }}>
-            ${Number(perfil.credito_disponible).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            ${creditoDisponible.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </span>
+        </div>
+      )}
+
+      {perfilEnEvaluacion && (
+        <div style={{
+          background: 'rgba(255,184,0,0.08)',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px 16px',
+          border: '1.5px solid rgba(255,184,0,0.35)',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            marginBottom: 8,
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--kueski-text-muted)' }}>
+              Crédito disponible
+            </span>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: 20,
+              background: 'rgba(255,184,0,0.18)',
+              color: '#b77900',
+            }}>
+              En evaluación
+            </span>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 4 }}>
+            Kueski está evaluando tu perfil
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', lineHeight: 1.5 }}>
+            Te notificaremos cuando tu línea de crédito esté disponible.
+          </div>
         </div>
       )}
     </div>
