@@ -463,7 +463,7 @@ No se persisten. Solo se valida el formato en frontend para que el flujo se vea 
 - Backend corriendo en `http://localhost:3001`.
 - Extensión compilada con `npm run build`.
 - Extensión cargada desde `extension/dist`.
-- Usuario demo con crédito disponible.
+- Usuario demo con credito disponible.
 - Al menos una tienda afiliada abierta para probar detección.
 - Una compra con cuotas pendientes para mostrar Alertas.
 - Una cuota vencida o próxima para mostrar pago.
