@@ -35,8 +35,8 @@
     const host = document.createElement('div')
     host.id = 'kueski-pay-launcher-host'
     host.style.position = 'fixed'
-    host.style.top = '96px'
-    host.style.right = '18px'
+    host.style.bottom = '24px'
+    host.style.right = '24px'
     host.style.zIndex = '2147483647'
 
     const shadow = host.attachShadow({ mode: 'open' })
@@ -77,7 +77,7 @@
 
         .hint {
           position: absolute;
-          top: 70px;
+          bottom: 70px;
           right: 0;
           background: #1A1463;
           color: #ffffff;
