@@ -433,6 +433,8 @@ Vista de alertas.
 - Calcula badge de alertas sumando vencidas y proximas a vencer en 7 dias o menos.
 - Permite activar/desactivar notificaciones push actualizando preferencias.
 - Permite pagar cuotas pendientes o vencidas desde cada alerta.
+- Antes de abrir el modal de pago, consulta `GET /api/compras/cuotas/:id/desglose`.
+- Muestra estado `Cargando...` mientras se obtiene el desglose.
 - Abre `PaymentModal.jsx` para elegir metodo de pago.
 - Al confirmar pago, llama al backend para marcar la cuota como `pagada`.
 - Mantiene historial de alertas con maximo 5 pagos recientes.
@@ -446,6 +448,12 @@ Modal de pago usado desde Alertas.
 - Opciones: Tarjeta y Deposito en OXXO.
 - Tarjeta solicita nombre del titular, numero, fecha de vencimiento y CVV.
 - OXXO genera una referencia numerica de 10 a 14 digitos.
+- Muestra tabla de desglose antes del metodo de pago:
+  - Monto original.
+  - Multa acumulada.
+  - Interes acumulado.
+  - Total a pagar.
+  - Dias de atraso cuando aplica.
 - Valida tarjeta:
   - Nombre minimo de 3 caracteres.
   - Numero de tarjeta numerico entre 16 y 19 digitos.
@@ -870,6 +878,64 @@ Respuesta:
 }
 ```
 
+#### `GET /api/compras/cuotas/:id/desglose`
+
+Requiere JWT.
+
+Calcula el desglose de pago de una cuota antes de pagarla.
+
+Comportamiento:
+
+- Valida que la cuota exista.
+- Valida que la cuota pertenezca al usuario autenticado.
+- Calcula dias vencidos desde `fecha_vencimiento`.
+- Aplica multa e interes solo si la cuota esta vencida o la fecha ya paso.
+- Regresa monto original, multa acumulada, interes acumulado y total a pagar.
+
+Reglas actuales:
+
+```text
+IVA = 16%
+Tasa moratoria diaria = 0.5%
+Dias maximos moratorios = 11
+```
+
+Comision por pago tardio:
+
+| Monto de cuota     | Comision base |
+| ------------------ | ------------- |
+| Hasta $150         | $50           |
+| $150.01 a $300     | $100          |
+| $300.01 a $700     | $150          |
+| Mas de $700        | $200          |
+
+Formulas:
+
+```text
+multa_acumulada = comision_base * 1.16
+dias_moratorios = min(dias_vencida, 11)
+interes_acumulado = monto_original * 0.005 * dias_moratorios
+total_a_pagar = monto_original + multa_acumulada + interes_acumulado
+```
+
+Respuesta:
+
+```json
+{
+  "cuota_id": 123,
+  "compra_id": 10,
+  "numero_cuota": 2,
+  "estado": "vencida",
+  "fecha_vencimiento": "2026-01-15",
+  "dias_vencida": 130,
+  "dias_moratorios": 11,
+  "monto_original": 600,
+  "multa_acumulada": 174,
+  "interes_acumulado": 33,
+  "total_a_pagar": 807
+}
+```
+
 #### `POST /api/compras/cuotas/:id/pagar`
 
 Requiere JWT.
@@ -916,6 +982,7 @@ Respuesta:
 ```
 
 Nota: el endpoint no almacena datos de tarjeta ni referencia en columnas dedicadas; actualmente persiste el estado de la cuota y recalcula el riesgo.
+El total con multa e interes se calcula para mostrarlo antes del pago mediante `GET /api/compras/cuotas/:id/desglose`; el endpoint de pago sigue marcando la cuota como pagada.
 
 ### Preferencias
 
@@ -1270,6 +1337,29 @@ El CVV virtual:
 - Si expira, se marca `cvv_expirado` en `chrome.storage.session` para evitar que se regenere automaticamente al reabrir el popup.
 - Backend valida expiracion con `expira_en`.
 
+### Multa e interes por cuota vencida
+
+Las cuotas vencidas tienen un desglose calculado desde backend antes de pagar.
+
+Reglas:
+
+- Multa por pago tardio segun rango del monto original.
+- IVA del 16% sobre la multa.
+- Interes moratorio diario de 0.5%.
+- Maximo 11 dias moratorios.
+
+Ejemplo:
+
+```text
+Cuota original: $600
+Dias de atraso: 130
+Comision base: $150
+Multa con IVA: $174
+Dias moratorios: 11
+Interes: 600 * 0.005 * 11 = $33
+Total: 600 + 174 + 33 = $807
+```
+
 ## 13. Persistencia en la extension
 
 ### `chrome.storage.local`
@@ -1465,6 +1555,17 @@ Clases reutilizables:
 - Limpieza de CVV expirado para evitar que reaparezca activo.
 - Correccion de PIN de compra a exactamente 4 digitos.
 
+### Sesion 8
+
+- Desglose financiero de cuotas vencidas antes de pagar.
+- Endpoint `GET /api/compras/cuotas/:id/desglose`.
+- Calculo de multa acumulada con IVA.
+- Calculo de interes moratorio al 0.5% diario.
+- Tope de 11 dias moratorios.
+- Conexion de `AlertView.jsx` con el endpoint de desglose.
+- Tabla de desglose en `PaymentModal.jsx`.
+- Ejemplo validado: cuota de `$600` con `130` dias de atraso da total `$807`.
+
 ## 17. Pendientes y brechas conocidas
 
 ### Pendientes funcionales
@@ -1477,6 +1578,7 @@ Clases reutilizables:
 - Si el telefono sera parte del producto final, agregar columna `telefono` en `usuarios` o una tabla de contacto y persistirlo desde `/api/auth/register`.
 - Si el 2FA sera real, agregar backend para generar, almacenar, expirar y validar codigos SMS, ademas de integracion con proveedor SMS.
 - Si se requiere auditoria completa de pagos, agregar columnas como `pagada_en`, `metodo_pago` y `referencia_pago` a `cuotas` o a una tabla dedicada de pagos.
+- Si se requiere persistir el total real pagado con multa/interes, agregar columnas o tabla de pagos para guardar `monto_original`, `multa`, `interes` y `total_pagado`.
 
 ### Brechas detectadas entre documentacion de avance y codigo
 
@@ -1560,6 +1662,7 @@ El proyecto puede considerarse funcional cuando:
 - La compra se confirma y aparece en historial.
 - Las cuotas se crean en base de datos.
 - Las cuotas se pueden pagar desde Alertas.
+- Las cuotas vencidas muestran desglose de monto original, multa, interes y total a pagar.
 - El pago de una cuota actualiza la base de datos.
 - El credito usado aumenta despues de comprar.
 - Las cuotas vencidas se detectan.
@@ -1577,7 +1680,7 @@ El proyecto puede considerarse funcional cuando:
 - `backend/routes/calculadora.js`: simulacion y perfil financiero.
 - `backend/routes/tokens.js`: CVV, canje y creacion de compras/cuotas.
 - `backend/routes/compras.js`: historial y morosidad.
-- `backend/routes/compras.js`: pago de cuotas desde Alertas.
+- `backend/routes/compras.js`: pago de cuotas desde Alertas y desglose de cuotas vencidas.
 - `backend/routes/pin.js`: PIN, intentos y bloqueo.
 - `backend/routes/preferencias.js`: configuracion del usuario.
 - `backend/routes/favoritos.js`: favoritos usados por la extension.

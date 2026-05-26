@@ -1393,3 +1393,155 @@ Se corrigió el bug donde el input del PIN permitía hasta 6 dígitos.
 | CVV virtual con expiración real           | ✅     |
 | Limpieza de CVV expirado                  | ✅     |
 | Build de extensión                        | ✅     |
+
+---
+
+# Reporte de Avance — Sesión 9
+
+## Kueski Pay Chrome Extension
+
+**Fecha:** 25 de Mayo 2026  
+**Continuación de:** Reporte Sesión 8
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Desglose de pago para cuotas vencidas
+
+Se agregó un desglose financiero para mostrar al usuario cuánto debe pagar cuando una cuota está vencida.
+
+**Archivos modificados:**
+
+- `backend/routes/compras.js`
+- `extension/src/services/api.js`
+- `extension/src/components/AlertView.jsx`
+- `extension/src/components/PaymentModal.jsx`
+
+**Tabla mostrada al pagar:**
+
+| Concepto          | Descripción                      |
+| ----------------- | -------------------------------- |
+| Monto original    | Monto base de la cuota           |
+| Multa acumulada   | Comisión por pago tardío con IVA |
+| Interés acumulado | Interés moratorio acumulado      |
+| Total a pagar     | Monto original + multa + interés |
+
+---
+
+### 2. Reglas de multa e interés moratorio
+
+Se implementaron reglas centralizadas en backend para que el frontend no invente los montos.
+
+**Comisión por pago tardío:**
+
+| Monto de cuota     | Comisión base |
+| ------------------ | ------------- |
+| Hasta `$150`       | `$50`         |
+| `$150.01` a `$300` | `$100`        |
+| `$300.01` a `$700` | `$150`        |
+| Más de `$700`      | `$200`        |
+
+La comisión se calcula con IVA:
+
+```text
+multa_acumulada = comision_base * 1.16
+```
+
+**Interés moratorio:**
+
+```text
+interes_acumulado = monto_original * 0.005 * dias_moratorios
+```
+
+Reglas:
+
+- Tasa moratoria diaria: `0.5%`
+- Máximo de días moratorios: `11`
+- Si la cuota no está vencida, multa e interés son `$0.00`
+
+Ejemplo con cuota de `$600` y `130` días de atraso:
+
+```text
+monto_original = 600
+multa_acumulada = 150 * 1.16 = 174
+dias_moratorios = min(130, 11) = 11
+interes_acumulado = 600 * 0.005 * 11 = 33
+total_a_pagar = 600 + 174 + 33 = 807
+```
+
+---
+
+### 3. Nuevo endpoint de desglose
+
+Se agregó el endpoint:
+
+```http
+GET /api/compras/cuotas/:id/desglose
+```
+
+**Respuesta esperada:**
+
+```json
+{
+  "cuota_id": 123,
+  "compra_id": 10,
+  "numero_cuota": 2,
+  "estado": "vencida",
+  "dias_vencida": 130,
+  "dias_moratorios": 11,
+  "monto_original": 600,
+  "multa_acumulada": 174,
+  "interes_acumulado": 33,
+  "total_a_pagar": 807
+}
+```
+
+El endpoint valida que la cuota pertenezca al usuario autenticado.
+
+---
+
+### 4. Conexión del frontend
+
+Se agregó en `services/api.js`:
+
+```js
+getDesgloseCuota: (token, id) =>
+  request(`/compras/cuotas/${id}/desglose`, {}, token);
+```
+
+En `AlertView.jsx`, al dar click en `Pagar`:
+
+- Se consulta primero el desglose al backend.
+- El botón muestra `Cargando...` mientras se obtiene la información.
+- Se abre `PaymentModal.jsx` con el desglose ya cargado.
+- Al cerrar o confirmar el pago, se limpia el desglose de estado local.
+
+---
+
+### 5. Tabla dentro del modal de pago
+
+`PaymentModal.jsx` ahora muestra antes del método de pago:
+
+- Monto original
+- Multa acumulada
+- Interés acumulado
+- Total a pagar
+- Días de atraso cuando aplica
+
+El flujo de tarjeta y OXXO se mantiene igual.
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                | Estado |
+| ------------------------------------- | ------ |
+| Endpoint de desglose de cuota         | ✅     |
+| Cálculo de multa con IVA              | ✅     |
+| Cálculo de interés moratorio          | ✅     |
+| Tope de 11 días moratorios            | ✅     |
+| Conexión del frontend con el desglose | ✅     |
+| Tabla de desglose en modal de pago    | ✅     |
+| Pago de cuotas desde Alertas          | ✅     |
+| Build de extensión                    | ✅     |
