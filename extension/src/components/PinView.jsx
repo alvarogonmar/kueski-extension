@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { pinAPI } from '../services/api.js'
 
 export default function PinView({ token, onSuccess, onCancel, monto, quincenas }) {
@@ -7,7 +7,7 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
-    if (pin.length < 4) return setError('El PIN debe tener al menos 4 dígitos')
+    if (!/^\d{4}$/.test(pin)) return setError('El PIN debe tener 4 dígitos')
     setLoading(true)
     setError('')
     try {
@@ -49,10 +49,10 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
         <input
           type="password"
           inputMode="numeric"
-          maxLength={6}
-          placeholder="••••••"
+          maxLength={4}
+          placeholder="••••"
           value={pin}
-          onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+          onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
           style={{
             width: '100%', padding: '14px', textAlign: 'center',
             fontSize: 24, letterSpacing: 8,
@@ -69,7 +69,7 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
         )}
       </div>
 
-      <button className="btn-primary" onClick={handleSubmit} disabled={loading || pin.length < 4}>
+      <button className="btn-primary" onClick={handleSubmit} disabled={loading || pin.length !== 4}>
         {loading ? 'Verificando...' : 'Confirmar compra'}
       </button>
       <button className="btn-secondary" onClick={onCancel}>

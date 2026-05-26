@@ -1,5 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { tokensAPI, comerciosAPI } from '../services/api.js'
+
+const CVV_KEYS = ['cvv_id', 'cvv_valor', 'cvv_generado_en', 'cvv_expira_en']
+const CVV_EXPIRED_KEY = 'cvv_expirado'
+const CVV_TTL = 120 * 1000
 
 
 export default function CvvView({ token, pin, comercio, monto, quincenas, onDone }) {
@@ -10,18 +14,37 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
   const [segundos, setSegundos] = useState(120)
   const [copiado, setCopiado] = useState(false)
 
+  const limpiarCvvGuardado = () => {
+    chrome.storage.session.remove(CVV_KEYS)
+  }
+
+  const marcarCvvExpirado = () => {
+    limpiarCvvGuardado()
+    chrome.storage.session.set({ [CVV_EXPIRED_KEY]: true })
+  }
+
+  const volver = () => {
+    chrome.storage.session.remove([...CVV_KEYS, CVV_EXPIRED_KEY])
+    onDone()
+  }
+
 
   useEffect(() => {
     const generar = async () => {
       try {
         // ✅ Si ya hay un CVV activo guardado, restaurarlo en lugar de generar uno nuevo
         const session = await new Promise(r =>
-          chrome.storage.session.get(['cvv_id', 'cvv_valor', 'cvv_generado_en'], r)
+          chrome.storage.session.get([...CVV_KEYS, CVV_EXPIRED_KEY], r)
         )
 
-        if (session.cvv_id && session.cvv_generado_en) {
-          const transcurridos = Math.floor((Date.now() - session.cvv_generado_en) / 1000)
-          const restantes = 120 - transcurridos
+        if (session[CVV_EXPIRED_KEY]) {
+          setError('El CVV expiró. Vuelve a intentarlo.')
+          setLoading(false)
+          return
+        }
+
+        if (session.cvv_id && session.cvv_expira_en) {
+          const restantes = Math.ceil((session.cvv_expira_en - Date.now()) / 1000)
 
           if (restantes > 0) {
             // CVV todavía válido — restaurar
@@ -32,7 +55,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
             return
           } else {
             // CVV ya expiró — limpiar y mostrar error
-            chrome.storage.session.remove(['cvv_id', 'cvv_valor', 'cvv_generado_en'])
+            marcarCvvExpirado()
             setError('El CVV expiró. Vuelve a intentarlo.')
             setLoading(false)
             return
@@ -55,7 +78,9 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
         chrome.storage.session.set({
           cvv_id: data.token_pago.id,
           cvv_valor: cvvGenerado,
-          cvv_generado_en: Date.now()
+          cvv_generado_en: Date.now(),
+          cvv_expira_en: Date.now() + CVV_TTL,
+          [CVV_EXPIRED_KEY]: false
         })
 
         setCvv(cvvGenerado)
@@ -75,7 +100,12 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
     if (!cvv) return
     const interval = setInterval(() => {
       setSegundos(s => {
-        if (s <= 1) { clearInterval(interval); return 0 }
+        if (s <= 1) {
+          clearInterval(interval)
+          marcarCvvExpirado()
+          setError('El CVV expiró. Vuelve a intentarlo.')
+          return 0
+        }
         return s - 1
       })
     }, 1000)
@@ -88,7 +118,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
       await tokensAPI.canjear(token, tokenId)
     } catch {}
     // ✅ Limpiar CVV del session al confirmar
-    chrome.storage.session.remove(['cvv_id', 'cvv_valor', 'cvv_generado_en'])
+    chrome.storage.session.remove([...CVV_KEYS, CVV_EXPIRED_KEY])
     onDone()
   }
 
@@ -115,7 +145,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
     <div style={{ textAlign: 'center', padding: '40px 20px' }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
       <div style={{ color: 'var(--kueski-danger)', fontWeight: 600 }}>{error}</div>
-      <button className="btn-secondary" style={{ marginTop: 16 }} onClick={onDone}>Volver</button>
+      <button className="btn-secondary" style={{ marginTop: 16 }} onClick={volver}>Volver</button>
     </div>
   )
 
