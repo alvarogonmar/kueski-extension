@@ -31,6 +31,7 @@ export const comprasAPI = {
   getById: (token, id) => request(`/compras/${id}`, {}, token),
    actualizarVencidas: (token) =>
     request('/compras/actualizar-vencidas', { method: 'POST' }, token),
+  getDesgloseCuota: (token, id) => request(`/compras/cuotas/${id}/desglose`, {}, token),
   pagarCuota: (token, id, body = {}) =>
     request(`/compras/cuotas/${id}/pagar`, {
       method: 'POST',

@@ -21,6 +21,8 @@ export default function AlertasView({ token, onCargado }) {
   const [notifActivas, setNotifActivas] = useState(true)
   const [loading, setLoading] = useState(true)
   const [cuotaPago, setCuotaPago] = useState(null)
+  const [desglosePago, setDesglosePago] = useState(null)
+  const [cargandoDesgloseId, setCargandoDesgloseId] = useState(null)
   const [mensajePago, setMensajePago] = useState('')
 
   useEffect(() => {
@@ -96,6 +98,20 @@ export default function AlertasView({ token, onCargado }) {
     }
   }
 
+  const abrirPago = async (cuota) => {
+    setCargandoDesgloseId(cuota.id)
+    setMensajePago('')
+    try {
+      const desglose = await comprasAPI.getDesgloseCuota(token, cuota.id)
+      setCuotaPago(cuota)
+      setDesglosePago(desglose)
+    } catch (e) {
+      setMensajePago(e.message || 'No se pudo cargar el desglose del pago')
+    } finally {
+      setCargandoDesgloseId(null)
+    }
+  }
+
   const actualizarBadge = (vencidasActuales, proximasActuales) => {
     if (onCargado) {
       onCargado(
@@ -122,6 +138,7 @@ export default function AlertasView({ token, onCargado }) {
         .slice(0, MAX_HISTORIAL_ALERTAS)
     )
     setCuotaPago(null)
+    setDesglosePago(null)
     setMensajePago('Pago realizado con éxito')
     actualizarBadge(nuevasVencidas, nuevasCuotas)
     setTimeout(() => setMensajePago(''), 3000)
@@ -147,7 +164,8 @@ export default function AlertasView({ token, onCargado }) {
       {cuotaPago && (
         <PaymentModal
           cuota={cuotaPago}
-          onClose={() => setCuotaPago(null)}
+          desglose={desglosePago}
+          onClose={() => { setCuotaPago(null); setDesglosePago(null) }}
           onConfirm={confirmarPago}
         />
       )}
@@ -230,12 +248,13 @@ export default function AlertasView({ token, onCargado }) {
                   }}>
                     Vencida
                   </div>
-                  <button onClick={() => setCuotaPago(cuota)} style={{
+                  <button onClick={() => abrirPago(cuota)} disabled={cargandoDesgloseId === cuota.id} style={{
                     marginTop: 8, padding: '6px 12px', borderRadius: 8,
                     background: 'var(--kueski-primary)', color: 'white',
                     fontSize: 11, fontWeight: 800,
+                    opacity: cargandoDesgloseId === cuota.id ? 0.7 : 1,
                   }}>
-                    Pagar
+                    {cargandoDesgloseId === cuota.id ? 'Cargando...' : 'Pagar'}
                   </button>
                 </div>
               </div>
@@ -292,12 +311,13 @@ export default function AlertasView({ token, onCargado }) {
                     }}>
                       {dias < 0 ? 'Vencida' : `en ${dias} día${dias === 1 ? '' : 's'}`}
                     </div>
-                    <button onClick={() => setCuotaPago(cuota)} style={{
+                    <button onClick={() => abrirPago(cuota)} disabled={cargandoDesgloseId === cuota.id} style={{
                       marginTop: 8, padding: '6px 12px', borderRadius: 8,
                       background: 'var(--kueski-primary)', color: 'white',
                       fontSize: 11, fontWeight: 800,
+                      opacity: cargandoDesgloseId === cuota.id ? 0.7 : 1,
                     }}>
-                      Pagar
+                      {cargandoDesgloseId === cuota.id ? 'Cargando...' : 'Pagar'}
                     </button>
                   </div>
                 </div>

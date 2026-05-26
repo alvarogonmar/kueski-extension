@@ -3,6 +3,60 @@ const router = express.Router();
 const pool = require('../db/db');
 const auth = require('../middleware/auth');
 
+const IVA = 0.16;
+const TASA_MORATORIA_DIARIA = 0.005;
+const DIAS_MAX_MORATORIOS = 11;
+
+const redondearDinero = (valor) => Number(Number(valor).toFixed(2));
+
+const calcularComisionPagoTardio = (monto) => {
+  const montoNum = Number(monto);
+  if (montoNum <= 150) return 50;
+  if (montoNum <= 300) return 100;
+  if (montoNum <= 700) return 150;
+  return 200;
+};
+
+const calcularDiasVencida = (fechaVencimiento) => {
+  const hoy = new Date();
+  const vencimiento = new Date(fechaVencimiento);
+
+  hoy.setHours(0, 0, 0, 0);
+  vencimiento.setHours(0, 0, 0, 0);
+
+  return Math.max(0, Math.floor((hoy - vencimiento) / (1000 * 60 * 60 * 24)));
+};
+
+const calcularDesgloseCuota = (cuota) => {
+  const montoOriginal = redondearDinero(cuota.monto);
+  const diasVencida = calcularDiasVencida(cuota.fecha_vencimiento);
+  const aplicaMora = cuota.estado === 'vencida' || diasVencida > 0;
+  const diasMoratorios = aplicaMora ? Math.min(diasVencida, DIAS_MAX_MORATORIOS) : 0;
+  const comisionBase = aplicaMora ? calcularComisionPagoTardio(montoOriginal) : 0;
+  const multaAcumulada = redondearDinero(comisionBase * (1 + IVA));
+  const interesAcumulado = redondearDinero(montoOriginal * TASA_MORATORIA_DIARIA * diasMoratorios);
+  const totalAPagar = redondearDinero(montoOriginal + multaAcumulada + interesAcumulado);
+
+  return {
+    cuota_id: cuota.id,
+    compra_id: cuota.compra_id,
+    numero_cuota: cuota.numero_cuota,
+    estado: cuota.estado,
+    fecha_vencimiento: cuota.fecha_vencimiento,
+    dias_vencida: diasVencida,
+    dias_moratorios: diasMoratorios,
+    monto_original: montoOriginal,
+    multa_acumulada: multaAcumulada,
+    interes_acumulado: interesAcumulado,
+    total_a_pagar: totalAPagar,
+    reglas: {
+      iva: IVA,
+      tasa_moratoria_diaria: TASA_MORATORIA_DIARIA,
+      dias_max_moratorios: DIAS_MAX_MORATORIOS
+    }
+  };
+};
+
 // GET /api/compras
 router.get('/', auth, async (req, res) => {
   try {
@@ -81,6 +135,27 @@ router.post('/actualizar-vencidas', auth, async (req, res) => {
     `, [nivel, req.usuario.id])
 
     res.json({ cuotas_vencidas: total, nivel_riesgo: nivel })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// GET /api/compras/cuotas/:id/desglose — calcula multa, interes y total a pagar
+router.get('/cuotas/:id/desglose', auth, async (req, res) => {
+  try {
+    const cuotaResult = await pool.query(
+      `SELECT cu.id, cu.compra_id, cu.numero_cuota, cu.monto, cu.fecha_vencimiento, cu.estado
+       FROM cuotas cu
+       JOIN compras c ON c.id = cu.compra_id
+       WHERE cu.id = $1 AND c.usuario_id = $2`,
+      [req.params.id, req.usuario.id]
+    )
+
+    if (cuotaResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Cuota no encontrada' })
+    }
+
+    res.json(calcularDesgloseCuota(cuotaResult.rows[0]))
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

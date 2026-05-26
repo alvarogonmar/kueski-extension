@@ -16,7 +16,10 @@ const formatearVencimiento = (value) => {
   return `${numeros.slice(0, 2)}/${numeros.slice(2)}`
 }
 
-export default function PaymentModal({ cuota, onClose, onConfirm }) {
+const formatMoney = (value) =>
+  Number(value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+
+export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
   const [metodo, setMetodo] = useState('tarjeta')
   const [form, setForm] = useState({
     titular: '',
@@ -115,7 +118,7 @@ export default function PaymentModal({ cuota, onClose, onConfirm }) {
               Elegir método de pago
             </div>
             <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', marginTop: 2 }}>
-              {cuota?.comercio} · ${Number(cuota?.monto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              {cuota?.comercio} · Cuota {cuota?.numero_cuota}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -126,6 +129,57 @@ export default function PaymentModal({ cuota, onClose, onConfirm }) {
             ×
           </button>
         </div>
+
+        {desglose && (
+          <div style={{
+            background: 'var(--kueski-surface)',
+            border: '1px solid var(--kueski-border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 14px',
+            marginBottom: 14,
+          }}>
+            <div style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: 'var(--kueski-text)',
+              marginBottom: 10,
+            }}>
+              Desglose del pago
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <DetallePago label="Monto original" value={desglose.monto_original} />
+              <DetallePago label="Multa acumulada" value={desglose.multa_acumulada} />
+              <DetallePago label="Interés acumulado" value={desglose.interes_acumulado} />
+              <div style={{
+                borderTop: '1px solid var(--kueski-border)',
+                paddingTop: 9,
+                marginTop: 2,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--kueski-text)' }}>
+                  Total a pagar
+                </span>
+                <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--kueski-blue)' }}>
+                  ${formatMoney(desglose.total_a_pagar)}
+                </span>
+              </div>
+            </div>
+
+            {desglose.dias_vencida > 0 && (
+              <div style={{
+                marginTop: 10,
+                fontSize: 11,
+                color: 'var(--kueski-text-muted)',
+                lineHeight: 1.4,
+              }}>
+                {desglose.dias_vencida} día{desglose.dias_vencida === 1 ? '' : 's'} de atraso.
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
           <button onClick={() => { setMetodo('tarjeta'); setError('') }} style={{
@@ -205,4 +259,21 @@ const inputStyle = {
   color: 'var(--kueski-text)',
   fontSize: 13,
   outline: 'none',
+}
+
+function DetallePago({ label, value }) {
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+      fontSize: 12,
+    }}>
+      <span style={{ color: 'var(--kueski-text-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--kueski-text)', fontWeight: 700 }}>
+        ${formatMoney(value)}
+      </span>
+    </div>
+  )
 }
