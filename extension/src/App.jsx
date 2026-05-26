@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import LoginView from './components/LoginView.jsx'
 import HomeCard from './components/HomeCard.jsx'
 import PaymentPlan from './components/PaymentPlan.jsx'
@@ -9,7 +9,8 @@ import CvvView from './components/CvvView.jsx'
 import NoComercioView from './components/NoComercioView.jsx'
 import ProfileView from './components/ProfileView.jsx'
 import AlertasView from './components/AlertView.jsx'
-import { comprasAPI } from './services/api.js' // ✅ NUEVO
+import CreditPendingView from './components/CreditPendingView.jsx'
+import { calculadoraAPI, comprasAPI } from './services/api.js'
 
 
 
@@ -25,6 +26,15 @@ export default function App() {
   const [alertasPendientes, setAlertasPendientes] = useState(0)
   const [nivelRiesgo, setNivelRiesgo] = useState(null)
   const [cuotasVencidas, setCuotasVencidas] = useState(0)
+  const [perfilFinanciero, setPerfilFinanciero] = useState(null)
+  const [perfilLoading, setPerfilLoading] = useState(false)
+
+  const creditoDisponible = Number(perfilFinanciero?.credito_disponible)
+  const perfilEnEvaluacion = !!token && !perfilLoading && (
+    !perfilFinanciero ||
+    !!perfilFinanciero.error ||
+    !Number.isFinite(creditoDisponible)
+  )
 
 
 
@@ -119,12 +129,23 @@ export default function App() {
   // ✅ NUEVO — actualizar cuotas vencidas y nivel de riesgo cada que hay sesión
   useEffect(() => {
     if (!token) return
-    comprasAPI.actualizarVencidas(token)
+    setPerfilLoading(true)
+    calculadoraAPI.perfil(token)
       .then(data => {
+        setPerfilFinanciero(data)
+        const disponible = Number(data?.credito_disponible)
+        if (data?.error || !Number.isFinite(disponible)) return null
+        return comprasAPI.actualizarVencidas(token)
+      })
+      .then(data => {
+        if (!data) return
         setNivelRiesgo(data.nivel_riesgo)
         setCuotasVencidas(data.cuotas_vencidas)
       })
-      .catch(() => {})
+      .catch(() => {
+        setPerfilFinanciero({ error: 'Perfil financiero no encontrado' })
+      })
+      .finally(() => setPerfilLoading(false))
   }, [token])
 
 
@@ -133,6 +154,7 @@ export default function App() {
   const handleLogin = (jwt, user) => {
     setToken(jwt)
     setUsuario(user)
+    setPerfilFinanciero(null)
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.local.set({ jwt, usuario: user })
     } else {
@@ -147,6 +169,10 @@ export default function App() {
   const handleLogout = () => {
     setToken(null)
     setUsuario(null)
+    setPerfilFinanciero(null)
+    setPerfilLoading(false)
+    setNivelRiesgo(null)
+    setCuotasVencidas(0)
     if (typeof chrome !== 'undefined' && chrome.storage) {
       // ✅ Al salir también limpia comercio y monto
       chrome.storage.local.remove(['jwt', 'usuario', 'last_comercio', 'last_monto'])
@@ -172,6 +198,13 @@ export default function App() {
 
 
   if (!token) return <LoginView onLogin={handleLogin} />
+
+
+  if (perfilLoading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 500, background: 'var(--kueski-bg)' }}>
+      <div style={{ color: 'var(--kueski-primary)', fontSize: 32 }}>⬡</div>
+    </div>
+  )
 
 
 
@@ -251,14 +284,16 @@ export default function App() {
 
       {/* Contenido */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        {renderView()}
+        {perfilEnEvaluacion ? <CreditPendingView usuario={usuario} /> : renderView()}
       </div>
 
 
 
 
       {/* NavBar */}
-      <NavBar view={view} setView={setView} alertasPendientes={alertasPendientes} />
+      {!perfilEnEvaluacion && (
+        <NavBar view={view} setView={setView} alertasPendientes={alertasPendientes} />
+      )}
     </div>
   )
 }
