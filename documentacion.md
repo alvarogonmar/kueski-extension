@@ -18,15 +18,17 @@ La extension esta pensada para funcionar en:
 El flujo principal cubre:
 
 1. Inicio de sesion o registro.
-2. Deteccion de comercio afiliado y monto del producto.
-3. Consulta de credito disponible.
-4. Simulacion de pagos por quincena.
-5. Verificacion de PIN.
-6. Generacion de CVV virtual temporal.
-7. Confirmacion de compra.
-8. Creacion de historial y cuotas.
-9. Alertas por pagos proximos o vencidos.
-10. Perfil, preferencias y favoritos.
+2. Verificacion de identidad por SMS.
+3. Evaluacion de perfil financiero si el usuario todavia no tiene credito aprobado.
+4. Deteccion de comercio afiliado y monto del producto.
+5. Consulta de credito disponible.
+6. Simulacion de pagos por quincena.
+7. Verificacion de PIN.
+8. Generacion de CVV virtual temporal.
+9. Confirmacion de compra.
+10. Creacion de historial y cuotas.
+11. Alertas por pagos proximos o vencidos.
+12. Perfil, preferencias y favoritos.
 
 ## 2. Stack tecnologico
 
@@ -103,12 +105,14 @@ kueski-extension/
         |   `-- index.css
         `-- components/
             |-- AlertView.jsx
+            |-- CreditPendingView.jsx
             |-- CvvView.jsx
             |-- HomeCard.jsx
             |-- LoginView.jsx
             |-- NavBar.jsx
             |-- NoComercioView.jsx
             |-- PaymentPlan.jsx
+            |-- PaymentModal.jsx
             |-- PinView.jsx
             |-- ProfileView.jsx
             `-- PurchaseHistory.jsx
@@ -294,7 +298,9 @@ Responsabilidades:
 - Restaurar vista activa desde `chrome.storage.session`.
 - Cargar comercio y monto detectados.
 - Escuchar mensajes del content script mientras el popup esta abierto.
-- Actualizar cuotas vencidas al iniciar sesion.
+- Consultar `perfil_financiero` al iniciar sesion.
+- Mostrar pantalla de evaluacion si el usuario no tiene perfil financiero valido.
+- Actualizar cuotas vencidas solo cuando existe credito/perfil aprobado.
 - Controlar navegacion entre vistas:
   - `home`
   - `plan`
@@ -311,6 +317,8 @@ Usuario abre tienda afiliada
   -> content.js detecta comercio y monto
   -> background.js guarda last_comercio y last_monto
   -> App.jsx restaura esos datos al abrir popup
+  -> Usuario inicia sesion y confirma codigo SMS
+  -> Si no hay perfil financiero, se muestra CreditPendingView y se bloquean funciones
   -> HomeCard muestra comercio, monto y credito disponible
   -> Usuario entra a PaymentPlan
   -> calculadoraAPI.simular calcula pagos por quincena
@@ -332,16 +340,29 @@ Pantalla de login y registro.
 
 - Login: `POST /api/auth/login`
 - Registro: `POST /api/auth/register`
-- En login exitoso entrega `token` y `usuario` a `App.jsx`.
-- En registro exitoso regresa al tab de login.
+- En login exitoso no entrega la sesion inmediatamente; primero muestra verificacion SMS.
+- En registro exitoso tambien muestra verificacion SMS antes de entrar.
+- Tras validar SMS, entrega `token` y `usuario` a `App.jsx`.
 - Usa `extension/public/kueski_logo.png` como logo principal.
 - Tiene una interfaz blanca, compacta y minimalista.
 - Permite mostrar/ocultar la contrasena.
+- El codigo SMS de demo es `123456`, pero no se muestra en pantalla.
+- Guarda temporalmente la sesion pendiente de SMS en `localStorage` con expiracion de 5 minutos.
 - Valida antes de llamar al backend:
   - Nombre requerido en registro, minimo 3 caracteres.
+  - Telefono requerido en registro, exactamente 10 digitos.
   - Email requerido y con formato valido.
   - Contrasena requerida.
   - En registro, contrasena minimo 6 caracteres.
+
+### `CreditPendingView.jsx`
+
+Vista para usuarios autenticados que todavia no tienen credito aprobado.
+
+- Se muestra cuando `App.jsx` no encuentra un `perfil_financiero` valido.
+- Usa el mismo estilo visual del login: fondo blanco, logo Kueski y tipografia compacta.
+- Informa que Kueski esta evaluando el perfil del usuario.
+- Mientras esta vista esta activa, no se muestra `NavBar` ni se puede acceder a compra, historial, alertas o perfil.
 
 ### `HomeCard.jsx`
 
@@ -372,7 +393,8 @@ Nota tecnica: el fallback local usa campos distintos (`por_quincena`, `total`) a
 Vista para confirmar compra con PIN.
 
 - Recibe monto y quincenas.
-- Pide PIN numerico.
+- Pide PIN numerico de exactamente 4 digitos.
+- Limita el input a 4 caracteres y solo acepta numeros.
 - Valida con `POST /api/pin/verificar`.
 - Si el PIN es valido, avanza a CVV.
 
@@ -384,7 +406,9 @@ Vista de CVV virtual.
 - Genera token con `POST /api/tokens/generar`.
 - Construye CVV visual con `token_pago.id` y `padStart(6, '0')`.
 - Guarda CVV activo en `chrome.storage.session`.
-- Mantiene countdown de 120 segundos.
+- Mantiene countdown de 120 segundos usando expiracion real con timestamp `cvv_expira_en`.
+- Si el CVV expira, limpia la sesion temporal y muestra mensaje de expiracion.
+- Si se cierra y reabre la extension despues de expirar, no se restaura como CVV activo.
 - Permite copiar CVV al portapapeles.
 - Confirma compra con `POST /api/tokens/canjear`.
 
@@ -515,6 +539,7 @@ Body:
 ```json
 {
   "nombre": "Alvaro",
+  "telefono": "5512345678",
   "email": "alvaro@test.mx",
   "password": "123456"
 }
@@ -533,7 +558,7 @@ Respuesta:
 }
 ```
 
-Observacion: el frontend envia `nombre` como campo unico aunque algunos reportes mencionan `apellido`.
+Observacion: el frontend envia `telefono` para el flujo de registro y verificacion SMS, pero el backend actual solo guarda `nombre`, `email` y `password_hash`.
 
 #### `POST /api/auth/login`
 
@@ -1212,9 +1237,27 @@ Reglas:
 
 - Debe ser numerico.
 - Debe tener 4 digitos en crear/cambiar.
-- En `PinView.jsx` se permite escribir hasta 6 digitos, pero el backend de crear/cambiar exige 4.
+- En `PinView.jsx` se limita a exactamente 4 digitos.
 - 3 intentos fallidos bloquean la cuenta por 15 minutos.
 - Los intentos se registran en `log_intentos_pin`.
+
+### Segundo factor SMS
+
+El segundo factor esta implementado como simulacion local de frontend para demo.
+
+Reglas actuales:
+
+- Aplica despues de login exitoso.
+- Aplica despues de registro exitoso.
+- Solicita un codigo SMS de 6 digitos.
+- El codigo interno de demo es `123456`.
+- No se muestra el codigo en pantalla.
+- La sesion pendiente de verificacion se guarda temporalmente en `localStorage`.
+- La sesion pendiente expira despues de 5 minutos.
+- Al confirmar el codigo correcto, se guarda la sesion JWT normal.
+- Al cambiar cuenta o expirar, se borra la sesion pendiente.
+
+Nota: no existe envio real de SMS ni endpoint backend para 2FA; es un flujo visual/funcional controlado desde `LoginView.jsx`.
 
 ### CVV
 
@@ -1222,8 +1265,9 @@ El CVV virtual:
 
 - Se genera desde `tokens_pago.id`.
 - Se conserva en `chrome.storage.session`.
-- Expira visualmente en 120 segundos.
-- Se elimina al confirmar compra.
+- Expira visualmente y logicamente en 120 segundos usando `cvv_expira_en`.
+- Se elimina al confirmar compra, volver o expirar.
+- Si expira, se marca `cvv_expirado` en `chrome.storage.session` para evitar que se regenere automaticamente al reabrir el popup.
 - Backend valida expiracion con `expira_en`.
 
 ## 13. Persistencia en la extension
@@ -1246,20 +1290,37 @@ Usado para datos temporales del flujo:
 - `cvv_id`
 - `cvv_valor`
 - `cvv_generado_en`
+- `cvv_expira_en`
+- `cvv_expirado`
 
 Esto permite:
 
 - Cerrar y reabrir popup sin perder el flujo PIN/CVV.
-- Mantener countdown del CVV.
+- Mantener countdown real del CVV.
 - Evitar regenerar CVV si todavia esta vigente.
+- Evitar restaurar CVV si ya expiro.
 
 ### Fallback fuera de Chrome
 
 Si no existe `chrome.storage`, `App.jsx` usa `localStorage` para `kueski_jwt` y `kueski_usuario`.
 
+### `localStorage`
+
+Ademas del fallback de sesion fuera de Chrome, el login usa:
+
+- `kueski_pending_2fa`
+
+Este valor conserva temporalmente la sesion pendiente de verificacion SMS para que, si el usuario cierra el widget en esa pantalla, al abrirlo de nuevo continue en `Verifica tu identidad`.
+
 ## 14. Estados y reglas de riesgo
 
-Al iniciar sesion, `App.jsx` llama:
+Al iniciar sesion, `App.jsx` primero llama:
+
+```js
+calculadoraAPI.perfil(token)
+```
+
+Si el perfil financiero existe y devuelve `credito_disponible` valido, entonces llama:
 
 ```js
 comprasAPI.actualizarVencidas(token)
@@ -1328,7 +1389,7 @@ Clases reutilizables:
 
 ## 16. Estado actual segun `avances.md`
 
-`avances.md` reporta cinco sesiones principales de avance:
+`avances.md` reporta siete sesiones principales de avance:
 
 ### Sesion 1
 
@@ -1391,6 +1452,19 @@ Clases reutilizables:
 - Validaciones locales de login/registro.
 - SQL recomendado para limpiar cuentas de prueba.
 
+### Sesion 7
+
+- Vista `CreditPendingView.jsx` para usuarios sin credito aprobado.
+- Bloqueo visual de funciones si no existe `perfil_financiero`.
+- Rediseño de la pantalla de evaluacion con logo Kueski y estilo similar al login.
+- Segundo factor de autenticacion por SMS despues de login.
+- Registro con telefono obligatorio.
+- Verificacion SMS tambien despues de crear cuenta.
+- Persistencia temporal de la pantalla SMS al cerrar y reabrir el widget.
+- Correccion de expiracion real del CVV virtual.
+- Limpieza de CVV expirado para evitar que reaparezca activo.
+- Correccion de PIN de compra a exactamente 4 digitos.
+
 ## 17. Pendientes y brechas conocidas
 
 ### Pendientes funcionales
@@ -1400,6 +1474,8 @@ Clases reutilizables:
 - Completar pruebas finales en Chrome con tiendas reales.
 - Preparar demo final.
 - Llenar `backend/db/schema.sql` con el esquema real de la base de datos.
+- Si el telefono sera parte del producto final, agregar columna `telefono` en `usuarios` o una tabla de contacto y persistirlo desde `/api/auth/register`.
+- Si el 2FA sera real, agregar backend para generar, almacenar, expirar y validar codigos SMS, ademas de integracion con proveedor SMS.
 - Si se requiere auditoria completa de pagos, agregar columnas como `pagada_en`, `metodo_pago` y `referencia_pago` a `cuotas` o a una tabla dedicada de pagos.
 
 ### Brechas detectadas entre documentacion de avance y codigo
@@ -1413,8 +1489,8 @@ Clases reutilizables:
   - `/api/comercios/favoritos`
   - `/api/favoritos`
   La extension usa `/api/favoritos`.
-- `auth.register` solo guarda `nombre`, aunque algunas vistas intentan mostrar `apellido`.
-- En `PinView.jsx` el input permite hasta 6 digitos, mientras crear/cambiar PIN exige exactamente 4.
+- `auth.register` solo guarda `nombre`, `email` y `password_hash`; el telefono enviado desde el frontend aun no se persiste.
+- El segundo factor SMS es simulado en frontend; no hay envio real ni validacion backend del codigo.
 
 ## 18. Guia rapida para correr el proyecto
 
@@ -1447,19 +1523,20 @@ Luego cargar `extension/dist` en `chrome://extensions`.
 1. Abrir una tienda afiliada.
 2. Abrir popup.
 3. Iniciar sesion.
-4. Confirmar que aparece comercio y monto.
-5. Ver credito disponible.
-6. Entrar a Plan.
-7. Elegir quincenas.
-8. Confirmar con PIN.
-9. Generar CVV.
-10. Copiar CVV.
-11. Confirmar compra.
-12. Revisar Historial.
-13. Revisar Alertas.
-14. Pagar una cuota desde Alertas.
-15. Cerrar y reabrir la extension para confirmar que el historial de alertas conserva el pago.
-16. Revisar Perfil, Preferencias y Favoritos.
+4. Capturar codigo SMS `123456`.
+5. Confirmar que aparece comercio y monto.
+6. Ver credito disponible o pantalla de evaluacion si no existe perfil financiero.
+7. Entrar a Plan.
+8. Elegir quincenas.
+9. Confirmar con PIN de 4 digitos.
+10. Generar CVV.
+11. Copiar CVV.
+12. Confirmar compra.
+13. Revisar Historial.
+14. Revisar Alertas.
+15. Pagar una cuota desde Alertas.
+16. Cerrar y reabrir la extension para confirmar que el historial de alertas conserva el pago.
+17. Revisar Perfil, Preferencias y Favoritos.
 
 ## 19. Criterios de entrega
 
@@ -1469,11 +1546,17 @@ El proyecto puede considerarse funcional cuando:
 - La extension compila.
 - Chrome carga la extension sin errores de manifest.
 - Login y registro funcionan.
+- Login y registro solicitan verificacion SMS.
+- Registro solicita telefono de 10 digitos.
 - El popup restaura sesion.
+- Si el usuario cierra en pantalla SMS, vuelve a esa pantalla mientras la verificacion siga vigente.
+- Si el usuario no tiene perfil financiero aprobado, solo ve la pantalla de evaluacion.
 - La extension detecta comercio y precio en las tiendas afiliadas.
 - La simulacion devuelve pagos por quincena.
 - El PIN se puede crear, verificar y cambiar.
+- El PIN de compra acepta exactamente 4 digitos.
 - El CVV se genera y expira correctamente.
+- Un CVV expirado no reaparece activo al cerrar y reabrir la extension.
 - La compra se confirma y aparece en historial.
 - Las cuotas se crean en base de datos.
 - Las cuotas se pueden pagar desde Alertas.
@@ -1507,7 +1590,8 @@ El proyecto puede considerarse funcional cuando:
 - `extension/src/components/PaymentPlan.jsx`: simulador.
 - `extension/src/components/PinView.jsx`: confirmacion por PIN.
 - `extension/src/components/CvvView.jsx`: CVV virtual.
+- `extension/src/components/CreditPendingView.jsx`: evaluacion de perfil sin credito aprobado.
 - `extension/src/components/AlertView.jsx`: alertas.
 - `extension/src/components/PaymentModal.jsx`: modal de pago de cuotas.
-- `extension/src/components/LoginView.jsx`: login, registro y validaciones.
+- `extension/src/components/LoginView.jsx`: login, registro, telefono, SMS y validaciones.
 - `extension/src/components/ProfileView.jsx`: perfil, PIN, preferencias y favoritos.

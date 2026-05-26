@@ -140,20 +140,20 @@ Se construyó el popup completo con los siguientes componentes:
 
 ## Estado actual del proyecto
 
-| Módulo                            | Estado                                   |
-| --------------------------------- | ---------------------------------------- |
-| Backend API REST                  | ✅ Completo y funcionando                |
-| Autenticación JWT                 | ✅ Funcionando                           |
-| Base de datos Supabase            | ✅ Conectada con datos de prueba         |
-| Popup React                       | ✅ Compilado y cargado en Chrome         |
-| Detección de comercio (Amazon)    | ✅ Funcionando                           |
+| Módulo                                    | Estado                                   |
+| ----------------------------------------- | ---------------------------------------- |
+| Backend API REST                          | ✅ Completo y funcionando                |
+| Autenticación JWT                         | ✅ Funcionando                           |
+| Base de datos Supabase                    | ✅ Conectada con datos de prueba         |
+| Popup React                               | ✅ Compilado y cargado en Chrome         |
+| Detección de comercio (Amazon)            | ✅ Funcionando                           |
 | Detección de comercio (Palacio de Hierro) | ✅ Funcionando con selectores corregidos |
-| Detección de comercio (Chedraui)   | ✅ Funcionando                           |
-| Detección de precio con descuento | ✅ Corregido (toma precio final)         |
-| Simulador de quincenas            | ✅ Conectado al backend real             |
-| Historial de compras              | ✅ Funcionando                           |
-| Crédito disponible                | ✅ Funcionando con datos en Supabase     |
-| Persistencia de sesión            | ✅ Via chrome.storage.local              |
+| Detección de comercio (Chedraui)          | ✅ Funcionando                           |
+| Detección de precio con descuento         | ✅ Corregido (toma precio final)         |
+| Simulador de quincenas                    | ✅ Conectado al backend real             |
+| Historial de compras                      | ✅ Funcionando                           |
+| Crédito disponible                        | ✅ Funcionando con datos en Supabase     |
+| Persistencia de sesión                    | ✅ Via chrome.storage.local              |
 
 ---
 
@@ -1065,11 +1065,11 @@ Se actualizó la extensión para manejar como comercios afiliados principales a 
 
 **Dominios actuales:**
 
-| Comercio           | Dominio                    |
-| ------------------ | -------------------------- |
-| Amazon             | `amazon.com.mx`            |
-| Palacio de Hierro  | `elpalaciodehierro.com`    |
-| Chedraui           | `chedraui.com.mx`          |
+| Comercio          | Dominio                 |
+| ----------------- | ----------------------- |
+| Amazon            | `amazon.com.mx`         |
+| Palacio de Hierro | `elpalaciodehierro.com` |
+| Chedraui          | `chedraui.com.mx`       |
 
 **Archivos modificados:**
 
@@ -1134,9 +1134,9 @@ class="b-discount_badge-copy"
 Se quitaron los selectores genéricos para Palacio y se apuntó directamente al precio de venta:
 
 ```js
-'.b-product_price-sales .b-product_price-value'
-'.b-product_price-value[content]'
-'[data-js-line-item-price-sales] .b-product_price-value'
+".b-product_price-sales .b-product_price-value";
+".b-product_price-value[content]";
+"[data-js-line-item-price-sales] .b-product_price-value";
 ```
 
 Además, el extractor ahora lee primero el atributo `content`, por ejemplo:
@@ -1210,14 +1210,186 @@ WHERE id = ID_DEL_COMERCIO_A_REEMPLAZAR;
 
 ## Estado actual del proyecto
 
-| Módulo                                      | Estado |
-| ------------------------------------------- | ------ |
-| Amazon como comercio afiliado               | ✅     |
-| Palacio de Hierro como comercio afiliado    | ✅     |
-| Chedraui como comercio afiliado             | ✅     |
-| Launcher flotante dentro de tienda          | ✅     |
-| Apertura del popup desde launcher           | ✅     |
-| Precio con descuento en Palacio de Hierro   | ✅     |
-| Manifest actualizado                        | ✅     |
-| Textos visibles actualizados                | ✅     |
-| Build de extensión                          | ✅     |
+| Módulo                                    | Estado |
+| ----------------------------------------- | ------ |
+| Amazon como comercio afiliado             | ✅     |
+| Palacio de Hierro como comercio afiliado  | ✅     |
+| Chedraui como comercio afiliado           | ✅     |
+| Launcher flotante dentro de tienda        | ✅     |
+| Apertura del popup desde launcher         | ✅     |
+| Precio con descuento en Palacio de Hierro | ✅     |
+| Manifest actualizado                      | ✅     |
+| Textos visibles actualizados              | ✅     |
+| Build de extensión                        | ✅     |
+
+---
+
+# Reporte de Avance — Sesión 8
+
+## Kueski Pay Chrome Extension
+
+**Fecha:** 25 de Mayo 2026  
+**Continuación de:** Reporte Sesión 3
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Vista para usuarios sin crédito aprobado
+
+Se agregó una vista especial para usuarios que todavía no tienen perfil financiero aprobado.
+
+**Archivo nuevo:**
+
+- `extension/src/components/CreditPendingView.jsx`
+
+**Archivos modificados:**
+
+- `extension/src/App.jsx`
+
+**Comportamiento:**
+
+- Si el usuario inicia sesión pero no existe `perfil_financiero` válido, no se muestran las funciones de compra.
+- Se oculta la navegación inferior.
+- Se muestra una pantalla minimalista con el logo de Kueski y mensaje de evaluación de perfil.
+- El usuario ve que Kueski está revisando su información y que se le notificará cuando el crédito esté disponible.
+
+---
+
+### 2. Segundo factor de autenticación por SMS
+
+Se agregó una verificación adicional después de iniciar sesión.
+
+**Archivo modificado:**
+
+- `extension/src/components/LoginView.jsx`
+
+**Comportamiento:**
+
+- Después de validar correo y contraseña, aparece la pantalla `Verifica tu identidad`.
+- Se solicita un código SMS de 6 dígitos.
+- Para la demo, el código interno es `123456`, pero ya no se muestra en pantalla.
+- Solo al ingresar el código correcto se guarda la sesión y se entra a la extensión.
+- Se agregó opción para reenviar código y cambiar cuenta.
+
+---
+
+### 3. Registro con teléfono y verificación SMS
+
+Se actualizó la pantalla de registro para pedir teléfono.
+
+**Campos actuales de registro:**
+
+- Nombre completo
+- Teléfono
+- Correo electrónico
+- Contraseña
+
+**Validaciones agregadas:**
+
+- Nombre mínimo de 3 caracteres.
+- Teléfono obligatorio de 10 dígitos.
+- Correo con formato válido.
+- Contraseña mínima de 6 caracteres.
+
+Después de crear una cuenta, también se pide el código SMS antes de entrar a la extensión.
+
+---
+
+### 4. Persistencia de la pantalla SMS
+
+Se corrigió el bug donde, si el usuario cerraba el widget en la pantalla de código SMS, al abrirlo de nuevo regresaba al login.
+
+**Solución:**
+
+- Se guarda temporalmente la sesión pendiente de 2FA en `localStorage`.
+- La sesión pendiente expira después de 5 minutos.
+- Si el usuario vuelve a abrir el widget dentro de ese tiempo, regresa directo a la pantalla de verificación.
+- Se limpia al confirmar código, cambiar cuenta o expirar.
+
+---
+
+### 5. Corrección de expiración del CVV virtual
+
+Se corrigió el bug donde un CVV expirado podía volver a mostrarse como activo al cerrar y abrir la extensión.
+
+**Archivo modificado:**
+
+- `extension/src/components/CvvView.jsx`
+
+**Solución:**
+
+- El CVV ahora se guarda con `cvv_expira_en`.
+- Al llegar a cero segundos, se elimina la sesión del CVV.
+- Se marca la sesión como expirada para que no se regenere automáticamente.
+- Al reabrir el widget después de expirar, se muestra el mensaje de expiración y no el CVV activo.
+- Al confirmar compra o volver, se limpia la sesión temporal.
+
+---
+
+### 6. Corrección de PIN de compra
+
+Se corrigió el bug donde el input del PIN permitía hasta 6 dígitos.
+
+**Archivo modificado:**
+
+- `extension/src/components/PinView.jsx`
+
+**Solución:**
+
+- El PIN vuelve a aceptar máximo 4 dígitos.
+- Solo permite números.
+- Valida exactamente 4 dígitos.
+- El botón de confirmar compra solo se activa cuando el PIN tiene 4 dígitos.
+- El placeholder volvió a `••••`.
+
+---
+
+## Bugs encontrados y corregidos
+
+### Bug 1 — Usuarios sin crédito podían ver funciones internas
+
+**Problema:** Un usuario nuevo sin `perfil_financiero` podía entrar a vistas internas o ver crédito como `$NaN`.
+
+**Solución:** Se agregó `CreditPendingView` y bloqueo visual del flujo hasta que exista un perfil financiero válido.
+
+---
+
+### Bug 2 — Pantalla SMS se perdía al cerrar el widget
+
+**Problema:** La sesión pendiente de SMS estaba solo en memoria de React.
+
+**Solución:** Se persistió temporalmente en `localStorage` con expiración de 5 minutos.
+
+---
+
+### Bug 3 — CVV expirado reaparecía activo
+
+**Problema:** La sesión del CVV se restauraba aunque el tiempo ya hubiera terminado.
+
+**Solución:** Se agregó expiración real con timestamp y limpieza de `chrome.storage.session`.
+
+---
+
+### Bug 4 — PIN de compra aceptaba 6 dígitos
+
+**Problema:** El input de `PinView` tenía `maxLength={6}`.
+
+**Solución:** Se cambió a 4 dígitos exactos y se separó del flujo SMS de 6 dígitos.
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                    | Estado |
+| ----------------------------------------- | ------ |
+| Login y registro minimalista              | ✅     |
+| Registro con teléfono                     | ✅     |
+| Segundo factor SMS                        | ✅     |
+| Persistencia temporal de SMS              | ✅     |
+| Vista de evaluación de perfil             | ✅     |
+| Bloqueo de funciones sin crédito aprobado | ✅     |
+| PIN de compra de 4 dígitos                | ✅     |
+| CVV virtual con expiración real           | ✅     |
+| Limpieza de CVV expirado                  | ✅     |
+| Build de extensión                        | ✅     |
