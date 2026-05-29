@@ -147,7 +147,7 @@ router.post('/canjear', auth, async (req, res) => {
       );
     }
 
-    // ✅ Descontar crédito usado
+    // Descontar crédito usado
     await pool.query(
       'UPDATE perfil_financiero SET credito_usado = credito_usado + $1 WHERE usuario_id = $2',
       [token.monto, token.usuario_id]
