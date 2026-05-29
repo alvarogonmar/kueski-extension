@@ -273,6 +273,9 @@ export default function App() {
             monto={monto}
             comercio={comercio}
             token={token}
+            perfilFinanciero={perfilFinanciero}
+            nivelRiesgo={nivelRiesgo}
+            cuotasVencidas={cuotasVencidas}
             onPagar={(q) => navegarA('pin', { quincenas: q })} // ✅
         />
         )
