@@ -1,4 +1,3 @@
-// services/api.js — COMPLETO CORREGIDO
 export const API = 'http://localhost:3001/api'
 
 
@@ -56,12 +55,12 @@ export const pinAPI = {
     request('/pin/crear', { method: 'POST', body: JSON.stringify({ pin }) }, token),
   verificar: (token, pin) =>
     request('/pin/verificar', { method: 'POST', body: JSON.stringify({ pin }) }, token),
-  cambiar: (token, pin_actual, pin_nuevo) => // ✅ NUEVO
+  cambiar: (token, pin_actual, pin_nuevo) =>
     request('/pin/cambiar', {
       method: 'POST',
       body: JSON.stringify({ pin_actual, pin_nuevo })
     }, token),
-  existe: (token) => request('/pin/existe', {}, token), // ✅ NUEVO
+  existe: (token) => request('/pin/existe', {}, token),
 }
 
 

@@ -14,7 +14,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   const [tienePin, setTienePin] = useState(true) // asume que sí tiene hasta verificar
 
 
-  // ✅ NUEVO — estado de preferencias
+  // estado de preferencias
   const [prefs, setPrefs] = useState({ notif_email: true, notif_push: true, dias_antes_recordatorio: 3 })
   const [guardando, setGuardando] = useState(false)
   const [mensajePrefs, setMensajePrefs] = useState('')
@@ -31,7 +31,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           setFavoritos(favs || [])
         } catch {}
 
-        // ✅ Verificar si ya tiene PIN sin contar intentos fallidos
+        // Verificar si ya tiene PIN sin contar intentos fallidos
         try {
           const { existe } = await pinAPI.existe(token)
           setTienePin(existe)
@@ -43,7 +43,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
     }, [])
 
 
-  // ✅ NUEVO — si no tiene PIN, saltar directo al paso 2 al abrir cambiarPin
+  // NUEVO — si no tiene PIN, saltar directo al paso 2 al abrir cambiarPin
   useEffect(() => {
     if (seccion === 'cambiarPin' && !tienePin) setPaso(2)
   }, [seccion])
@@ -80,7 +80,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       setError('El PIN debe ser de 4 dígitos')
       return
     }
-    // ✅ Solo validar que sea diferente si tiene PIN previo
+    // Solo validar que sea diferente si tiene PIN previo
     if (tienePin && pinNuevo === pinActual) {
       setError('El PIN nuevo debe ser diferente al actual')
       return
@@ -88,14 +88,14 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
     setLoading(true)
     setError('')
     try {
-      // ✅ NUEVO — usar crear o cambiar según si ya tiene PIN
+      // Usar crear o cambiar según si ya tiene PIN
       if (tienePin) {
         await pinAPI.cambiar(token, pinActual, pinNuevo)
       } else {
         await pinAPI.crear(token, pinNuevo)
       }
       setMensaje(tienePin ? '✅ PIN actualizado correctamente' : '✅ PIN creado correctamente')
-      setTienePin(true) // ✅ ya tiene PIN después de crear
+      setTienePin(true) // ya tiene PIN después de crear
       setSeccion(null)
       setPinActual('')
       setPinNuevo('')
@@ -108,7 +108,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   }
 
 
-  // ✅ NUEVO — guardar preferencias
+  // guardar preferencias
   const guardarPrefs = async () => {
     setGuardando(true)
     setMensajePrefs('')
@@ -149,7 +149,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       <div style={{ textAlign: 'center', marginBottom: 4 }}>
         <div style={{ fontSize: 32, marginBottom: 8 }}>🔒</div>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-text)' }}>
-          {/* ✅ Título dinámico según si tiene PIN y el paso */}
+          {/* Título dinámico según si tiene PIN y el paso */}
           {!tienePin ? 'Crea tu PIN' : paso === 1 ? 'Ingresa tu PIN actual' : 'Ingresa tu PIN nuevo'}
         </div>
         <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', marginTop: 4 }}>
@@ -179,7 +179,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
   )
 
 
-  // ✅ NUEVO — Vista preferencias
+  // Vista preferencias
   if (seccion === 'preferencias') return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={volverPerfil}
@@ -337,7 +337,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           borderBottom: '1px solid var(--kueski-border)' }}>
           Seguridad
         </div>
-        {/* ✅ Texto dinámico según si tiene PIN */}
+        {/* Texto dinámico según si tiene PIN */}
         <button onClick={() => { setSeccion('cambiarPin'); setMensaje('') }} style={{
           width: '100%', padding: '14px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', background: 'none',
@@ -366,7 +366,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
         </button>
       </div>
 
-      {/* ✅ Mis favoritos (solo si hay alguno) */}
+      {/* Mis favoritos (solo si hay alguno) */}
       {favoritos.length > 0 && (
         <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
           border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>

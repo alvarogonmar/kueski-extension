@@ -4,7 +4,7 @@ import React from 'react'
 const tabs = [
   { id: 'home', label: 'Inicio', icon: '⊙' },
   { id: 'plan', label: 'Plan', icon: '◈' },
-  { id: 'alertas', label: 'Alertas', icon: '🔔' }, // ✅ NUEVO
+  { id: 'alertas', label: 'Alertas', icon: '🔔' },
   { id: 'history', label: 'Historial', icon: '☰' },
   { id: 'profile', label: 'Perfil', icon: '◉' },
 ]
@@ -29,7 +29,7 @@ export default function NavBar({ view, setView, alertasPendientes = 0 }) {
         }}>
           <span style={{ position: 'relative' }}>
             {tab.icon}
-            {/* ✅ Badge rojo en Alertas si hay vencimientos pendientes */}
+            {/* Badge rojo en Alertas si hay vencimientos pendientes */}
             {tab.id === 'alertas' && alertasPendientes > 0 && (
               <span style={{
                 position: 'absolute', top: -4, right: -6,

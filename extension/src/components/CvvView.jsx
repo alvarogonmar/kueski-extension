@@ -32,7 +32,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
   useEffect(() => {
     const generar = async () => {
       try {
-        // ✅ Si ya hay un CVV activo guardado, restaurarlo en lugar de generar uno nuevo
+        // Si ya hay un CVV activo guardado, restaurarlo en lugar de generar uno nuevo
         const session = await new Promise(r =>
           chrome.storage.session.get([...CVV_KEYS, CVV_EXPIRED_KEY], r)
         )
@@ -74,7 +74,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
         const data = await tokensAPI.generar(token, pin, comercio_id, monto, quincenas)
         const cvvGenerado = String(data.token_pago.id).padStart(6, '0')
 
-        // ✅ Guardar en session para restaurar si el popup se cierra
+        // Guardar en session para restaurar si el popup se cierra
         chrome.storage.session.set({
           cvv_id: data.token_pago.id,
           cvv_valor: cvvGenerado,
@@ -117,7 +117,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
     try {
       await tokensAPI.canjear(token, tokenId)
     } catch {}
-    // ✅ Limpiar CVV del session al confirmar
+    // Limpiar CVV del session al confirmar
     chrome.storage.session.remove([...CVV_KEYS, CVV_EXPIRED_KEY])
     onDone()
   }

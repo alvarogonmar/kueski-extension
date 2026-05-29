@@ -6,14 +6,14 @@ chrome.runtime.onInstalled.addListener(() => {
 })
 
 
-// ✅ NUEVO — detecta cuando el usuario navega a otra tienda
+// detecta cuando el usuario navega a otra tienda
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
     const afiliadas = ['amazon.com.mx', 'elpalaciodehierro.com', 'chedraui.com.mx']
     const esAfiliada = afiliadas.some(d => tab.url.includes(d))
 
     if (!esAfiliada) {
-      // ✅ Solo limpiar comercio si NO hay un flujo de CVV/PIN activo
+      // Solo limpiar comercio si NO hay un flujo de CVV/PIN activo
       chrome.storage.session.get(['vistaActiva'], (session) => {
         const vistaEnFlujo = ['pin', 'cvv'].includes(session.vistaActiva)
         if (!vistaEnFlujo) {

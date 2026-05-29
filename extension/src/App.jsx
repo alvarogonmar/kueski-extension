@@ -71,7 +71,7 @@ export default function App() {
 
 
 
-  // ✅ NUEVO — función centralizada para cambiar de vista y persistirla
+  // función centralizada para cambiar de vista y persistirla
   const navegarA = (vista, extras = {}) => {
     setView(vista)
     if (extras.pin !== undefined) setPinConfirmado(extras.pin)
@@ -83,7 +83,7 @@ export default function App() {
 
 
 
-  // ✅ NUEVO — limpiar vista guardada al terminar flujo
+  // limpiar vista guardada al terminar flujo
   const limpiarVista = () => {
     setView('home')
     setPinConfirmado(null)
@@ -99,7 +99,7 @@ export default function App() {
     const restore = async () => {
       try {
         if (typeof chrome !== 'undefined' && chrome.storage) {
-          // ✅ Leer sesión + comercio y monto guardados por background.js
+          // Leer sesión + comercio y monto guardados por background.js
           chrome.storage.local.get(['jwt', 'usuario', 'last_comercio', 'last_monto'], (result) => {
             if (result.jwt) {
               setToken(result.jwt)
@@ -110,7 +110,7 @@ export default function App() {
 
 
 
-            // ✅ NUEVO — restaurar vista si el popup se cerró a la mitad
+            // restaurar vista si el popup se cerró a la mitad
             chrome.storage.session.get(['vistaActiva', 'datosVista'], (session) => {
               if (session.vistaActiva && session.vistaActiva !== 'home') {
                 setView(session.vistaActiva)
@@ -138,7 +138,7 @@ export default function App() {
 
 
 
-    // ✅ Escuchar mensajes en tiempo real si el popup está abierto
+    // Escuchar mensajes en tiempo real si el popup está abierto
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.onMessage.addListener((msg) => {
         if (msg.tipo === 'MONTO') {
@@ -153,7 +153,7 @@ export default function App() {
           setComercio(msg.comercio)
           chrome.storage.local.set({ last_comercio: msg.comercio })
         }
-        // ✅ NUEVO — limpiar comercio si salió de tienda afiliada
+        // Limpiar comercio si salió de tienda afiliada
         if (msg.tipo === 'SIN_COMERCIO') {
           setComercio(null)
           setMonto(null)
@@ -163,7 +163,7 @@ export default function App() {
   }, [])
 
 
-  // ✅ NUEVO — actualizar cuotas vencidas y nivel de riesgo cada que hay sesión
+  // actualizar cuotas vencidas y nivel de riesgo cada que hay sesión
   useEffect(() => {
     if (!token) return
     setPerfilLoading(true)
@@ -212,7 +212,7 @@ export default function App() {
     setNivelRiesgo(null)
     setCuotasVencidas(0)
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      // ✅ Al salir también limpia comercio y monto
+      //  Al salir también limpia comercio y monto
       chrome.storage.local.remove(['jwt', 'usuario', 'last_comercio', 'last_monto'])
     } else {
       localStorage.removeItem('kueski_jwt')
@@ -220,7 +220,7 @@ export default function App() {
     }
     setComercio(null)
     setMonto(null)
-    limpiarVista() // ✅ NUEVO — también limpia la vista guardada
+    limpiarVista() // también limpia la vista guardada
   }
 
 
@@ -254,8 +254,8 @@ export default function App() {
             token={token}
             monto={monto}
             quincenas={quincenasSeleccionadas}
-            onSuccess={(pin) => navegarA('cvv', { pin, quincenas: quincenasSeleccionadas })} // ✅
-            onCancel={() => navegarA('plan')} // ✅
+            onSuccess={(pin) => navegarA('cvv', { pin, quincenas: quincenasSeleccionadas })}
+            onCancel={() => navegarA('plan')}
         />
         )
         case 'cvv': return (
@@ -265,7 +265,7 @@ export default function App() {
             comercio={comercio}
             monto={monto}
             quincenas={quincenasSeleccionadas}
-            onDone={() => limpiarVista()} // ✅
+            onDone={() => limpiarVista()}
         />
         )
         case 'plan': return (
@@ -276,7 +276,7 @@ export default function App() {
             perfilFinanciero={perfilFinanciero}
             nivelRiesgo={nivelRiesgo}
             cuotasVencidas={cuotasVencidas}
-            onPagar={(q) => navegarA('pin', { quincenas: q })} // ✅
+            onPagar={(q) => navegarA('pin', { quincenas: q })} // 
         />
         )
         case 'history': return <PurchaseHistory token={token} />
@@ -290,15 +290,15 @@ export default function App() {
         case 'alertas': return (
         <AlertasView token={token} onCargado={(n) => setAlertasPendientes(n)} />
         )
-        default: return comercio ? ( // ✅ NUEVO — solo muestra HomeCard si hay comercio
+        default: return comercio ? ( // solo muestra HomeCard si hay comercio
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}
             onVerPlan={() => navegarA('plan')} token={token}
-            nivelRiesgo={nivelRiesgo}        // ✅ NUEVO
-            cuotasVencidas={cuotasVencidas}  // ✅ NUEVO
+            nivelRiesgo={nivelRiesgo}       
+            cuotasVencidas={cuotasVencidas} 
         />
         ) : (
-        <NoComercioView /> // ✅ NUEVO — si no hay tienda afiliada
+        <NoComercioView /> //   — si no hay tienda afiliada
         )
     }
     }

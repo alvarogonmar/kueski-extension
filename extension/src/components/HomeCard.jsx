@@ -23,7 +23,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
   }, [token])
 
 
-  // ✅ verificar si el comercio actual ya es favorito
+  // verificar si el comercio actual ya es favorito
   useEffect(() => {
     if (!token || !comercio?.dominio) return
     favoritosAPI.getAll(token)
@@ -35,7 +35,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
   }, [token, comercio])
 
 
-  // ✅ toggle favorito
+  // toggle favorito
   const toggleFavorito = async () => {
     if (!comercio?.dominio || loadingFav) return
     setLoadingFav(true)
@@ -57,7 +57,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* ✅ NUEVO — Banner de moroso */}
+      {/* Banner de moroso */}
       {cuotasVencidas > 0 && (
         <div style={{
           background: nivelRiesgo === 'alto' ? 'rgba(239,68,68,0.1)' : 'rgba(251,146,60,0.1)',
@@ -144,7 +144,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
           <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 12 }}>
             ${Number(monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
-          {/* ✅ NUEVO — deshabilitar botón si tiene cuenta restringida */}
+          {/* NUEVO — deshabilitar botón si tiene cuenta restringida */}
           <button
             className={!puedeVerPlan ? 'btn-secondary' : 'btn-primary'}
             onClick={puedeVerPlan ? onVerPlan : undefined}

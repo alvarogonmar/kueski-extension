@@ -144,7 +144,7 @@
     return false
   }
 
-  // ✅ NUEVO — función reutilizable para re-detectar al cambiar de tienda
+  // Función reutilizable para re-detectar al cambiar de tienda
   const detectarComercioYEnviar = () => {
     const dominio = Object.keys(COMERCIOS).find(d => location.hostname.includes(d))
     if (!dominio) return
@@ -249,7 +249,7 @@
     if (++intentos >= 5) clearInterval(intervalo)
   }, 2000)
 
-  // ✅ NUEVO — escucha cuando background.js detecta cambio de URL
+  // Escucha cuando background.js detecta cambio de URL
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'URL_CHANGED') {
       detectarComercioYEnviar()
