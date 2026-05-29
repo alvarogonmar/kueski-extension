@@ -246,9 +246,12 @@ Responsabilidades:
 - Extraer el precio del producto usando selectores especificos por tienda.
 - Parsear montos en formatos comunes mexicanos y europeos.
 - Ignorar precios fuera del rango `10` a `500000`.
+- Evitar deteccion de monto en home/inicio o paginas que no parecen producto.
+- Enviar limpieza de monto cuando no hay producto valido para evitar precios de banners o carruseles.
 - Enviar mensajes al runtime:
   - `COMERCIO`
   - `MONTO`
+  - `LIMPIAR_MONTO`
 - Observar cambios del DOM con `MutationObserver`.
 - Reintentar deteccion cada 2 segundos hasta 5 intentos.
 - Reaccionar a mensajes `URL_CHANGED` enviados por el service worker.
@@ -287,6 +290,7 @@ Responsabilidades:
 - No limpiar comercio/monto si el usuario esta en flujo activo de PIN o CVV.
 - Reenviar `URL_CHANGED` al content script.
 - Persistir mensajes `COMERCIO` y `MONTO` en `chrome.storage.local`.
+- Eliminar `last_monto` cuando recibe `LIMPIAR_MONTO`.
 
 ### Popup React
 
@@ -298,6 +302,9 @@ Responsabilidades:
 - Restaurar vista activa desde `chrome.storage.session`.
 - Cargar comercio y monto detectados.
 - Escuchar mensajes del content script mientras el popup esta abierto.
+- Escuchar `LIMPIAR_MONTO` para borrar el monto sin recargar el sitio.
+- Sincronizar la pestana activa despues de restaurar sesion o iniciar sesion.
+- Detectar inmediatamente si la URL actual pertenece a Amazon, Palacio de Hierro o Chedraui.
 - Consultar `perfil_financiero` al iniciar sesion.
 - Mostrar pantalla de evaluacion si el usuario no tiene perfil financiero valido.
 - Actualizar cuotas vencidas solo cuando existe credito/perfil aprobado.
@@ -1448,12 +1455,25 @@ Los estilos base estan en `extension/src/styles/index.css`.
 Variables principales:
 
 ```css
---kueski-bg: #f5f6fa;
+--kueski-bg: #f5f8ff;
 --kueski-surface: #ffffff;
---kueski-primary: #00B050;
---kueski-blue: #1A1463;
+--kueski-card: #ffffff;
+--kueski-surface-2: #eef4ff;
+--kueski-surface-3: #dce8ff;
+--kueski-primary: #0048F8;
+--kueski-primary-hover: #003bd1;
+--kueski-blue: #0048F8;
+--kueski-blue-light: #0070F8;
 --kueski-yellow: #FFB800;
+--kueski-text: #171a2f;
+--kueski-text-muted: #687083;
+--kueski-border: #dbe5f5;
+--kueski-success: #00B050;
 --kueski-danger: #ef4444;
+--kueski-primary-soft: rgba(0,72,248,0.10);
+--kueski-primary-border: rgba(0,72,248,0.28);
+--kueski-success-soft: rgba(0,176,80,0.12);
+--kueski-success-border: rgba(0,176,80,0.30);
 --radius-sm: 8px;
 --radius-md: 12px;
 --radius-lg: 16px;
@@ -1464,9 +1484,10 @@ El popup mide:
 ```css
 body {
   width: 380px;
-  min-height: 500px;
 }
 ```
+
+El azul Kueski se usa como color primario para header, acciones principales y estados seleccionados. El verde se conserva como color semantico de exito, activo o confirmacion. El `body` ya no fuerza altura minima global para evitar espacio vacio en vistas compactas.
 
 Clases reutilizables:
 
@@ -1479,7 +1500,7 @@ Clases reutilizables:
 
 ## 16. Estado actual segun `avances.md`
 
-`avances.md` reporta siete sesiones principales de avance:
+`avances.md` reporta diez sesiones principales de avance:
 
 ### Sesion 1
 
@@ -1566,6 +1587,24 @@ Clases reutilizables:
 - Tabla de desglose en `PaymentModal.jsx`.
 - Ejemplo validado: cuota de `$600` con `130` dias de atraso da total `$807`.
 
+### Sesion 9
+
+- Ajustes finales de desglose de pago.
+- Consolidacion del estado de cuotas vencidas y pago desde Alertas.
+- Validacion de build de extension.
+
+### Sesion 10
+
+- Revision visual contra lineamientos de marca Kueski 2026.
+- Azul oficial Kueski como color primario.
+- Verde reservado para exito, activo o confirmacion.
+- Limpieza de monto en home/inicio para evitar precios de banners o carruseles.
+- Validacion de monto solo en paginas de producto.
+- Mensaje de estado vacio en Plan: "Explora un articulo".
+- Eliminacion de altura minima global del popup para evitar espacio sobrante.
+- Sincronizacion de pestana activa despues de login para no requerir recarga.
+- Investigacion oficial sobre historial, buen comportamiento de pago, linea de credito y beneficios.
+
 ## 17. Pendientes y brechas conocidas
 
 ### Pendientes funcionales
@@ -1579,6 +1618,7 @@ Clases reutilizables:
 - Si el 2FA sera real, agregar backend para generar, almacenar, expirar y validar codigos SMS, ademas de integracion con proveedor SMS.
 - Si se requiere auditoria completa de pagos, agregar columnas como `pagada_en`, `metodo_pago` y `referencia_pago` a `cuotas` o a una tabla dedicada de pagos.
 - Si se requiere persistir el total real pagado con multa/interes, agregar columnas o tabla de pagos para guardar `monto_original`, `multa`, `interes` y `total_pagado`.
+- Convertir la logica de perfil de riesgo en reglas de negocio mas claras para definir quincenas disponibles segun historial de pago.
 
 ### Brechas detectadas entre documentacion de avance y codigo
 
@@ -1593,6 +1633,7 @@ Clases reutilizables:
   La extension usa `/api/favoritos`.
 - `auth.register` solo guarda `nombre`, `email` y `password_hash`; el telefono enviado desde el frontend aun no se persiste.
 - El segundo factor SMS es simulado en frontend; no hay envio real ni validacion backend del codigo.
+- La deteccion de pagina de producto depende de patrones de URL/selectores de cada comercio; debe validarse con mas URLs reales antes de entrega final.
 
 ## 18. Guia rapida para correr el proyecto
 

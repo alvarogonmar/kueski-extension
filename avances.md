@@ -1545,3 +1545,132 @@ El flujo de tarjeta y OXXO se mantiene igual.
 | Tabla de desglose en modal de pago    | ✅     |
 | Pago de cuotas desde Alertas          | ✅     |
 | Build de extensión                    | ✅     |
+
+---
+
+# Reporte de Avance — Sesión 10
+
+## Kueski Pay Chrome Extension
+
+**Fecha:** 29 de Mayo 2026  
+**Continuación de:** Reporte Sesión 9
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Alineación visual con lineamientos de marca Kueski
+
+Se revisó la extensión contra el PDF de lineamientos de marca 2026 y se detectó que la interfaz mezclaba varios azules y usaba el verde como color principal.
+
+**Archivos modificados:**
+
+- `extension/src/styles/index.css`
+- `extension/src/App.jsx`
+- `extension/src/components/LoginView.jsx`
+- `extension/src/components/CreditPendingView.jsx`
+- `extension/src/components/HomeCard.jsx`
+- `extension/src/components/PaymentPlan.jsx`
+- `extension/src/components/PaymentModal.jsx`
+- `extension/src/components/ProfileView.jsx`
+
+**Cambios realizados:**
+
+- Se cambió el color primario a azul Kueski (`#0048F8`).
+- Se agregó azul claro de apoyo (`#0070F8`).
+- Se dejó el verde únicamente para estados de éxito o confirmación.
+- Se reemplazaron colores hardcodeados como `#0874ff`, `#1A1463` y `#242733` por variables CSS.
+- Se agregó `--kueski-card`, que ya se usaba en componentes pero no existía en `index.css`.
+- Se quitaron tonos fuera de marca en login, perfil pendiente, plan, modal y estados seleccionados.
+
+---
+
+### 2. Corrección de detección de monto en páginas home
+
+**Problema:** En páginas principales de tiendas afiliadas, especialmente Chedraui, la extensión tomaba precios de banners o carruseles y los mostraba como si fueran el monto de una compra.
+
+**Archivos modificados:**
+
+- `extension/content/content.js`
+- `extension/background/background.js`
+- `extension/src/App.jsx`
+
+**Solución:**
+
+- Se agregó detección de páginas home/inicio.
+- Se agregó validación para detectar monto solo en páginas que parecen producto.
+- Si el usuario está en home o en una página sin producto, se envía `LIMPIAR_MONTO`.
+- `background.js` elimina `last_monto` cuando recibe `LIMPIAR_MONTO`.
+- `App.jsx` escucha `LIMPIAR_MONTO` y borra el monto de la interfaz sin recargar.
+
+---
+
+### 3. Mejora de estado vacío en el simulador
+
+Cuando el usuario entra a `Plan` desde una tienda afiliada pero aún no está en un producto, el texto anterior decía:
+
+```text
+Visita una tienda afiliada para simular tu plan de pagos
+```
+
+Esto era confuso porque el usuario ya estaba dentro de una tienda afiliada.
+
+**Archivo modificado:**
+
+- `extension/src/components/PaymentPlan.jsx`
+
+**Nuevo mensaje:**
+
+```text
+Explora un artículo
+Abre un producto de esta tienda para detectar el monto y ver tus planes de pago.
+```
+
+---
+
+### 4. Reducción del espacio vacío del popup
+
+**Problema:** Al limpiar el monto en home, el popup dejaba demasiado espacio vacío debajo del contenido.
+
+**Archivo modificado:**
+
+- `extension/src/styles/index.css`
+
+**Solución:**
+
+- Se quitó `min-height: 500px` del `body`.
+- Las pantallas que sí necesitan altura completa, como login y carga, mantienen su altura dentro de sus propios componentes.
+- El popup ahora se ajusta mejor al contenido visible.
+
+---
+
+### 5. Sincronización automática después de iniciar sesión
+
+**Problema:** Si el usuario iniciaba sesión estando ya en Amazon, Chedraui o Palacio de Hierro, el popup podía mostrar "No estás en una tienda afiliada" hasta recargar la página.
+
+**Archivo modificado:**
+
+- `extension/src/App.jsx`
+
+**Solución:**
+
+- Se agregó una lista local de comercios afiliados.
+- Después de restaurar sesión o iniciar sesión, `App.jsx` consulta la pestaña activa con `chrome.tabs.query`.
+- Si la URL actual pertenece a una tienda afiliada, actualiza `comercio` inmediatamente.
+- También envía `URL_CHANGED` al content script para volver a detectar el monto si aplica.
+
+---
+
+## Estado actual del proyecto
+
+| Módulo                                       | Estado |
+| -------------------------------------------- | ------ |
+| Paleta visual alineada a Kueski 2026         | ✅     |
+| Azul oficial como color primario             | ✅     |
+| Verde reservado para éxito/confirmación      | ✅     |
+| Detección de monto solo en producto          | ✅     |
+| Limpieza de monto en home                    | ✅     |
+| Estado vacío de Plan mejorado                | ✅     |
+| Popup sin espacio vacío innecesario          | ✅     |
+| Sincronización post-login con pestaña activa | ✅     |
+| Build de extensión                           | ✅     |
