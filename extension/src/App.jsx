@@ -271,7 +271,7 @@ export default function App() {
       <div style={{ background: 'var(--kueski-blue)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>kueski</span>
-          <span style={{ fontSize: 11, color: 'var(--kueski-primary)', fontWeight: 700, background: 'rgba(0,176,80,0.2)', padding: '2px 6px', borderRadius: 4 }}>pay</span>
+          <span style={{ fontSize: 11, color: 'white', fontWeight: 700, background: 'rgba(255,255,255,0.18)', padding: '2px 6px', borderRadius: 4 }}>pay</span>
         </div>
         {comercio && <span className="tag tag-success">● {comercio.nombre}</span>}
         <button onClick={handleLogout} style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, background: 'none' }}>

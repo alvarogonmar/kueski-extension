@@ -2,12 +2,12 @@ export default function CreditPendingView({ usuario }) {
   return (
     <div style={{
       minHeight: 500,
-      background: '#fff',
+      background: 'var(--kueski-surface)',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       padding: '26px 30px 24px',
-      color: '#242733',
+      color: 'var(--kueski-text)',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <img
@@ -17,7 +17,7 @@ export default function CreditPendingView({ usuario }) {
         />
 
         <h1 style={{
-          color: '#242733',
+          color: 'var(--kueski-text)',
           fontSize: 26,
           lineHeight: 1.14,
           fontWeight: 800,
@@ -35,26 +35,26 @@ export default function CreditPendingView({ usuario }) {
       }}>
         <div style={{
           fontSize: 15,
-          color: '#686b76',
+          color: 'var(--kueski-text-muted)',
           lineHeight: 1.55,
         }}>
           Hola {usuario?.nombre || 'Usuario'}, estamos revisando tu información para determinar si podemos ofrecerte una línea de crédito.
         </div>
 
         <div style={{
-          background: '#f6f8fb',
-          border: '1.5px solid #e0e3ea',
+          background: 'var(--kueski-surface-2)',
+          border: '1.5px solid var(--kueski-border)',
           borderRadius: 13,
           padding: '15px 16px',
           fontSize: 13,
-          color: '#686b76',
+          color: 'var(--kueski-text-muted)',
           lineHeight: 1.5,
         }}>
           Te notificaremos cuando tu crédito esté disponible.
         </div>
 
         <div style={{
-          color: '#0874ff',
+          color: 'var(--kueski-primary)',
           fontSize: 12,
           fontWeight: 800,
           marginTop: 2,

@@ -1,18 +1,24 @@
 :root {
-  --kueski-bg: #f5f6fa;
+  --kueski-bg: #f5f8ff;
   --kueski-surface: #ffffff;
-  --kueski-surface-2: #f0f2f8;
-  --kueski-surface-3: #e8eaf2;
-  --kueski-primary: #00B050;
-  --kueski-primary-hover: #009040;
-  --kueski-blue: #1A1463;
-  --kueski-blue-light: #2d259e;
+  --kueski-card: #ffffff;
+  --kueski-surface-2: #eef4ff;
+  --kueski-surface-3: #dce8ff;
+  --kueski-primary: #0048F8;
+  --kueski-primary-hover: #003bd1;
+  --kueski-blue: #0048F8;
+  --kueski-blue-light: #0070F8;
   --kueski-yellow: #FFB800;
-  --kueski-text: #1A1463;
-  --kueski-text-muted: #6b7280;
-  --kueski-border: #e2e5f0;
+  --kueski-text: #171a2f;
+  --kueski-text-muted: #687083;
+  --kueski-border: #dbe5f5;
   --kueski-success: #00B050;
+  --kueski-success-hover: #009040;
   --kueski-danger: #ef4444;
+  --kueski-primary-soft: rgba(0,72,248,0.10);
+  --kueski-primary-border: rgba(0,72,248,0.28);
+  --kueski-success-soft: rgba(0,176,80,0.12);
+  --kueski-success-border: rgba(0,176,80,0.30);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -65,6 +71,6 @@ button { cursor: pointer; border: none; font: inherit; }
   border-radius: 4px;
 }
 
-.tag-success { background: rgba(0,176,80,0.12); color: var(--kueski-success); }
+.tag-success { background: var(--kueski-success-soft); color: var(--kueski-success); }
 .tag-danger  { background: rgba(239,68,68,0.12); color: var(--kueski-danger); }
-.tag-blue    { background: rgba(26,20,99,0.10);  color: var(--kueski-blue); }
+.tag-blue    { background: var(--kueski-primary-soft);  color: var(--kueski-blue); }

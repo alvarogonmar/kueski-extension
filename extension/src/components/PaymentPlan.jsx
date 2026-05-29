@@ -90,10 +90,10 @@ export default function PaymentPlan({ monto, comercio, token, onPagar }) {
       {/* Resultado */}
       {resultado && (
         <div style={{
-          background: 'rgba(0,176,80,0.08)',
+          background: 'var(--kueski-primary-soft)',
           borderRadius: 'var(--radius-md)',
           padding: '20px',
-          border: '1.5px solid rgba(0,176,80,0.3)',
+          border: '1.5px solid var(--kueski-primary-border)',
           textAlign: 'center',
         }}>
           <div style={{ fontSize: 12, color: 'var(--kueski-primary)', fontWeight: 600, marginBottom: 6 }}>

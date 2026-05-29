@@ -95,8 +95,8 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
       {/* Comercio detectado */}
       {comercio ? (
         <div style={{
-          background: 'rgba(0,176,80,0.08)', borderRadius: 'var(--radius-md)',
-          padding: '14px 16px', border: '1.5px solid rgba(0,176,80,0.3)',
+          background: 'var(--kueski-primary-soft)', borderRadius: 'var(--radius-md)',
+          padding: '14px 16px', border: '1.5px solid var(--kueski-primary-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>

@@ -102,7 +102,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 50,
-      background: 'rgba(26,20,99,0.35)',
+      background: 'rgba(0,72,248,0.28)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
     }}>
       <div style={{
@@ -110,7 +110,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
         background: 'var(--kueski-bg)',
         borderRadius: '18px 18px 0 0',
         padding: '18px 16px 16px',
-        boxShadow: '0 -8px 30px rgba(26,20,99,0.22)',
+        boxShadow: '0 -8px 30px rgba(0,72,248,0.18)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div>
@@ -218,7 +218,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
           </div>
         ) : (
           <div style={{
-            background: 'rgba(0,176,80,0.08)', border: '1.5px solid rgba(0,176,80,0.3)',
+            background: 'var(--kueski-primary-soft)', border: '1.5px solid var(--kueski-primary-border)',
             borderRadius: 'var(--radius-md)', padding: '18px 14px', textAlign: 'center',
           }}>
             <div style={{ fontSize: 12, color: 'var(--kueski-primary)', fontWeight: 700, marginBottom: 8 }}>

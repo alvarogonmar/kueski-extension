@@ -48,10 +48,10 @@ export default function LoginView({ onLogin }) {
     width: '100%',
     height: 48,
     padding: '0 14px',
-    background: '#fff',
-    border: '1.5px solid #c9ccd3',
+    background: 'var(--kueski-surface)',
+    border: '1.5px solid var(--kueski-border)',
     borderRadius: 13,
-    color: '#242733',
+    color: 'var(--kueski-text)',
     fontSize: 15,
     fontWeight: 400,
     outline: 'none',
@@ -187,12 +187,12 @@ export default function LoginView({ onLogin }) {
     return (
       <div style={{
         minHeight: 500,
-        background: '#fff',
+        background: 'var(--kueski-surface)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         padding: '26px 30px 24px',
-        color: '#242733',
+        color: 'var(--kueski-text)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <img
@@ -202,7 +202,7 @@ export default function LoginView({ onLogin }) {
           />
 
           <h1 style={{
-            color: '#242733',
+            color: 'var(--kueski-text)',
             fontSize: 27,
             lineHeight: 1.1,
             fontWeight: 800,
@@ -214,7 +214,7 @@ export default function LoginView({ onLogin }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           <div style={{
-            color: '#686b76',
+            color: 'var(--kueski-text-muted)',
             fontSize: 14,
             lineHeight: 1.5,
             textAlign: 'center',
@@ -256,7 +256,7 @@ export default function LoginView({ onLogin }) {
               width: '100%',
               height: 50,
               borderRadius: 28,
-              background: '#0874ff',
+              background: 'var(--kueski-primary)',
               color: 'white',
               fontSize: 17,
               fontWeight: 500,
@@ -273,7 +273,7 @@ export default function LoginView({ onLogin }) {
             justifyContent: 'center',
             gap: 8,
             flexWrap: 'wrap',
-            color: '#242733',
+            color: 'var(--kueski-text)',
             fontSize: 14,
             marginTop: 9,
           }}>
@@ -282,20 +282,20 @@ export default function LoginView({ onLogin }) {
               onClick={() => { setSmsCode(''); setError('Código reenviado') }}
               style={{
                 background: 'transparent',
-                color: '#0874ff',
+                color: 'var(--kueski-primary)',
                 fontSize: 14,
                 fontWeight: 800,
               }}
             >
               Reenviar código
             </button>
-            <span style={{ color: '#c9ccd3' }}>·</span>
+            <span style={{ color: 'var(--kueski-border)' }}>·</span>
             <button
               type="button"
               onClick={regresarLogin}
               style={{
                 background: 'transparent',
-                color: '#0874ff',
+                color: 'var(--kueski-primary)',
                 fontSize: 14,
                 fontWeight: 800,
               }}
@@ -311,12 +311,12 @@ export default function LoginView({ onLogin }) {
   return (
     <div style={{
       minHeight: 500,
-      background: '#fff',
+      background: 'var(--kueski-surface)',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       padding: '26px 30px 24px',
-      color: '#242733',
+      color: 'var(--kueski-text)',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <img
@@ -326,7 +326,7 @@ export default function LoginView({ onLogin }) {
         />
 
         <h1 style={{
-          color: '#242733',
+          color: 'var(--kueski-text)',
           fontSize: 27,
           lineHeight: 1.1,
           fontWeight: 800,
@@ -382,7 +382,7 @@ export default function LoginView({ onLogin }) {
               top: '50%',
               transform: 'translateY(-50%)',
               background: 'transparent',
-              color: '#686b76',
+              color: 'var(--kueski-text-muted)',
               width: 26,
               height: 26,
               display: 'flex',
@@ -414,7 +414,7 @@ export default function LoginView({ onLogin }) {
             width: '100%',
             height: 50,
             borderRadius: 28,
-            background: '#0874ff',
+            background: 'var(--kueski-primary)',
             color: 'white',
             fontSize: 17,
             fontWeight: 500,
@@ -431,7 +431,7 @@ export default function LoginView({ onLogin }) {
           justifyContent: 'center',
           gap: 8,
           flexWrap: 'wrap',
-          color: '#242733',
+          color: 'var(--kueski-text)',
           fontSize: 14,
           marginTop: 9,
         }}>
@@ -441,7 +441,7 @@ export default function LoginView({ onLogin }) {
             onClick={() => { setTab(tab === 'login' ? 'register' : 'login'); setError(''); setSmsCode(''); borrarSesionPendiente() }}
             style={{
               background: 'transparent',
-              color: '#0874ff',
+              color: 'var(--kueski-primary)',
               fontSize: 14,
               fontWeight: 800,
             }}

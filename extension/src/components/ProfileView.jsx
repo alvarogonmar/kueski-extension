@@ -263,7 +263,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
                   flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                   border: '1.5px solid',
                   borderColor: prefs.dias_antes_recordatorio === d ? 'var(--kueski-primary)' : 'var(--kueski-border)',
-                  background: prefs.dias_antes_recordatorio === d ? 'rgba(0,176,80,0.1)' : 'var(--kueski-surface)',
+                  background: prefs.dias_antes_recordatorio === d ? 'var(--kueski-primary-soft)' : 'var(--kueski-surface)',
                   color: prefs.dias_antes_recordatorio === d ? 'var(--kueski-primary)' : 'var(--kueski-text-muted)',
                   cursor: 'pointer', transition: 'all 0.15s'
                 }}>
@@ -298,7 +298,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {mensaje && (
-        <div style={{ background: 'rgba(0,176,80,0.1)', border: '1px solid rgba(0,176,80,0.3)',
+        <div style={{ background: 'var(--kueski-success-soft)', border: '1px solid var(--kueski-success-border)',
           borderRadius: 'var(--radius-md)', padding: '10px 14px',
           color: 'var(--kueski-primary)', fontSize: 13, textAlign: 'center' }}>
           {mensaje}
