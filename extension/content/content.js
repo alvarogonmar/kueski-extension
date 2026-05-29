@@ -115,6 +115,35 @@
     document.documentElement.appendChild(host)
   }
 
+  const limpiarMonto = () => {
+    chrome.runtime.sendMessage({ tipo: 'LIMPIAR_MONTO' })
+  }
+
+  const esPaginaHome = () => {
+    const path = location.pathname.replace(/\/+$/, '')
+    return path === '' || path === '/home' || path === '/inicio'
+  }
+
+  const esPaginaProducto = () => {
+    if (esPaginaHome()) return false
+
+    if (dominio === 'amazon.com.mx') {
+      return /\/(dp|gp\/product)\//.test(location.pathname)
+    }
+
+    if (dominio === 'elpalaciodehierro.com') {
+      return location.pathname.endsWith('.html') ||
+        !!document.querySelector('.b-product_detail, .b-product_name, [data-pid]')
+    }
+
+    if (dominio === 'chedraui.com.mx') {
+      return /\/p(\/|$)|\/producto\//i.test(location.pathname) ||
+        !!document.querySelector('[itemtype*="Product"], [data-testid*="product-detail"], button[class*="add-to-cart" i]')
+    }
+
+    return false
+  }
+
   // ✅ NUEVO — función reutilizable para re-detectar al cambiar de tienda
   const detectarComercioYEnviar = () => {
     const dominio = Object.keys(COMERCIOS).find(d => location.hostname.includes(d))
@@ -196,8 +225,17 @@
 
 
   const enviarMonto = () => {
+    if (!esPaginaProducto()) {
+      limpiarMonto()
+      return
+    }
+
     const monto = extraerMonto()
-    if (monto) chrome.runtime.sendMessage({ tipo: 'MONTO', monto })
+    if (monto) {
+      chrome.runtime.sendMessage({ tipo: 'MONTO', monto })
+    } else {
+      limpiarMonto()
+    }
   }
 
 

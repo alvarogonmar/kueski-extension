@@ -12,6 +12,12 @@ import AlertasView from './components/AlertView.jsx'
 import CreditPendingView from './components/CreditPendingView.jsx'
 import { calculadoraAPI, comprasAPI } from './services/api.js'
 
+const COMERCIOS_AFILIADOS = [
+  { dominio: 'amazon.com.mx', nombre: 'Amazon' },
+  { dominio: 'elpalaciodehierro.com', nombre: 'Palacio de Hierro' },
+  { dominio: 'chedraui.com.mx', nombre: 'Chedraui' },
+]
+
 
 
 export default function App() {
@@ -35,6 +41,32 @@ export default function App() {
     !!perfilFinanciero.error ||
     !Number.isFinite(creditoDisponible)
   )
+
+  const sincronizarPestanaActiva = () => {
+    if (typeof chrome === 'undefined' || !chrome.tabs) return
+
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+      if (!tab?.url) return
+
+      const tienda = COMERCIOS_AFILIADOS.find(({ dominio }) => tab.url.includes(dominio))
+
+      if (!tienda) {
+        setComercio(null)
+        setMonto(null)
+        chrome.storage?.local?.remove(['last_comercio', 'last_monto'])
+        return
+      }
+
+      const comercioActual = { nombre: tienda.nombre, dominio: tienda.dominio }
+      setComercio(comercioActual)
+      chrome.storage?.local?.set({ last_comercio: comercioActual })
+
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'URL_CHANGED', url: tab.url })
+          .catch(() => {})
+      }
+    })
+  }
 
 
 
@@ -85,6 +117,7 @@ export default function App() {
                 if (session.datosVista?.pin) setPinConfirmado(session.datosVista.pin)
                 if (session.datosVista?.quincenas) setQuincenasSeleccionadas(session.datosVista.quincenas)
               }
+              sincronizarPestanaActiva()
               setLoading(false)
             })
           })
@@ -111,6 +144,10 @@ export default function App() {
         if (msg.tipo === 'MONTO') {
           setMonto(msg.monto)
           chrome.storage.local.set({ last_monto: msg.monto })
+        }
+        if (msg.tipo === 'LIMPIAR_MONTO') {
+          setMonto(null)
+          chrome.storage.local.remove(['last_monto'])
         }
         if (msg.tipo === 'COMERCIO') {
           setComercio(msg.comercio)
@@ -157,6 +194,7 @@ export default function App() {
     setPerfilFinanciero(null)
     if (typeof chrome !== 'undefined' && chrome.storage) {
       chrome.storage.local.set({ jwt, usuario: user })
+      sincronizarPestanaActiva()
     } else {
       localStorage.setItem('kueski_jwt', jwt)
       localStorage.setItem('kueski_usuario', JSON.stringify(user))

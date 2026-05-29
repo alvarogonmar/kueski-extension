@@ -38,6 +38,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set({ last_monto: message.monto })
   }
 
+  if (message.tipo === 'LIMPIAR_MONTO') {
+    chrome.storage.local.remove(['last_monto'])
+  }
+
 
   if (message.tipo === 'ABRIR_POPUP') {
     chrome.action.openPopup()

@@ -35,7 +35,12 @@ export default function PaymentPlan({ monto, comercio, token, onPagar }) {
       color: 'var(--kueski-text-muted)', fontSize: 14,
     }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>🛒</div>
-      <div>Visita una tienda afiliada para simular tu plan de pagos</div>
+      <div style={{ fontWeight: 700, color: 'var(--kueski-text)', marginBottom: 6 }}>
+        Explora un artículo
+      </div>
+      <div style={{ lineHeight: 1.45 }}>
+        Abre un producto de esta tienda para detectar el monto y ver tus planes de pago.
+      </div>
     </div>
   )
 
