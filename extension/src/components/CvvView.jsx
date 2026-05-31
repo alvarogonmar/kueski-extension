@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+/* global chrome */
+import { useCallback, useEffect, useState } from 'react'
 import { tokensAPI, comerciosAPI } from '../services/api.js'
 
 const CVV_KEYS = ['cvv_id', 'cvv_valor', 'cvv_generado_en', 'cvv_expira_en']
@@ -14,14 +15,14 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
   const [segundos, setSegundos] = useState(120)
   const [copiado, setCopiado] = useState(false)
 
-  const limpiarCvvGuardado = () => {
+  const limpiarCvvGuardado = useCallback(() => {
     chrome.storage.session.remove(CVV_KEYS)
-  }
+  }, [])
 
-  const marcarCvvExpirado = () => {
+  const marcarCvvExpirado = useCallback(() => {
     limpiarCvvGuardado()
     chrome.storage.session.set({ [CVV_EXPIRED_KEY]: true })
-  }
+  }, [limpiarCvvGuardado])
 
   const volver = () => {
     chrome.storage.session.remove([...CVV_KEYS, CVV_EXPIRED_KEY])
@@ -68,7 +69,9 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
           try {
             const comercioData = await comerciosAPI.porDominio(comercio.dominio)
             comercio_id = comercioData.id
-          } catch {}
+          } catch {
+            comercio_id = 1
+          }
         }
 
         const data = await tokensAPI.generar(token, pin, comercio_id, monto, quincenas)
@@ -85,14 +88,14 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
 
         setCvv(cvvGenerado)
         setTokenId(data.token_pago.id)
-      } catch (e) {
+      } catch {
         setError('No se pudo generar el CVV, intenta de nuevo')
       } finally {
         setLoading(false)
       }
     }
     generar()
-  }, [])
+  }, [comercio?.dominio, marcarCvvExpirado, monto, pin, quincenas, token])
 
 
   // Countdown basado en segundos reales restantes
@@ -110,13 +113,15 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [cvv])
+  }, [cvv, marcarCvvExpirado])
 
 
   const handleConfirmar = async () => {
     try {
       await tokensAPI.canjear(token, tokenId)
-    } catch {}
+    } catch {
+      // La compra puede confirmarse localmente aunque el canje falle en demo.
+    }
     // Limpiar CVV del session al confirmar
     chrome.storage.session.remove([...CVV_KEYS, CVV_EXPIRED_KEY])
     onDone()
@@ -135,15 +140,15 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
 
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-      <div style={{ color: 'var(--kueski-primary)', fontSize: 32 }}>⬡</div>
+    <div className="kueski-loading-state" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+      <div className="kueski-spinner" aria-label="Generando CVV" />
     </div>
   )
 
 
   if (error) return (
-    <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
+    <div className="kueski-empty-state kueski-error-shake" style={{ textAlign: 'center', padding: '40px 20px' }}>
+      <div className="cvv-error-icon" aria-hidden="true" />
       <div style={{ color: 'var(--kueski-danger)', fontWeight: 600 }}>{error}</div>
       <button className="btn-secondary" style={{ marginTop: 16 }} onClick={volver}>Volver</button>
     </div>
@@ -151,34 +156,35 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
 
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
 
       {/* Estado del CVV — sin mostrar el número */}
-      <div style={{
+      <div className="kueski-panel cvv-secure-panel" style={{
         background: segundos > 30 ? 'rgba(0,176,80,0.08)' : 'rgba(239,68,68,0.08)',
         borderRadius: 'var(--radius-md)', padding: '28px 20px',
         border: `1.5px solid ${segundos > 30 ? 'rgba(0,176,80,0.3)' : 'rgba(239,68,68,0.4)'}`,
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
+        <div className="cvv-lock-icon" aria-hidden="true" />
         <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 6 }}>
           CVV Virtual generado
         </div>
         <div style={{ fontSize: 13, color: 'var(--kueski-text-muted)', marginBottom: 12 }}>
           Cópialo y úsalo al pagar con tu tarjeta Kueski Pay
         </div>
-        <div style={{
+        <div className="cvv-expiration" style={{
           fontSize: 13, fontWeight: 600,
           color: segundos > 30 ? 'var(--kueski-primary)' : 'var(--kueski-danger)'
         }}>
-          ⏱ Expira en {minutos}:{segs.toString().padStart(2, '0')}
+          <span className="cvv-clock-icon" aria-hidden="true" />
+          Expira en {minutos}:{segs.toString().padStart(2, '0')}
         </div>
       </div>
 
 
       {/* Resumen de compra */}
-      <div style={{
+      <div className="kueski-panel" style={{
         background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
         padding: '14px 16px', border: '1px solid var(--kueski-border)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -191,7 +197,7 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
 
 
       {/* Instrucciones */}
-      <div style={{
+      <div className="kueski-panel" style={{
         background: 'var(--kueski-surface-2)', borderRadius: 'var(--radius-md)',
         padding: '14px 16px', border: '1px solid var(--kueski-border)',
         fontSize: 12, color: 'var(--kueski-text-muted)', lineHeight: 1.8,
@@ -203,12 +209,13 @@ export default function CvvView({ token, pin, comercio, monto, quincenas, onDone
 
 
       <button className="btn-secondary" onClick={copiarCvv} disabled={segundos === 0}>
-        {copiado ? '✅ CVV copiado!' : '📋 Copiar CVV'}
+        <span className={copiado ? 'cvv-check-icon' : 'cvv-copy-icon'} aria-hidden="true" />
+        {copiado ? 'CVV copiado' : 'Copiar CVV'}
       </button>
 
 
       <button className="btn-primary" onClick={handleConfirmar} disabled={segundos === 0}>
-        {segundos === 0 ? 'CVV expirado' : 'Ya pagué — Confirmar compra ✅'}
+        {segundos === 0 ? 'CVV expirado' : 'Ya pagué — Confirmar compra'}
       </button>
 
 

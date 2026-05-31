@@ -1,17 +1,38 @@
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import { API } from '../services/api.js'
 
 const PENDING_2FA_KEY = 'kueski_pending_2fa'
 const PENDING_2FA_TTL = 5 * 60 * 1000
 
+const obtenerSesionPendiente = () => {
+  const raw = localStorage.getItem(PENDING_2FA_KEY)
+  if (!raw) return null
+
+  try {
+    const session = JSON.parse(raw)
+    const expirada = Date.now() - Number(session.createdAt) > PENDING_2FA_TTL
+
+    if (expirada) {
+      localStorage.removeItem(PENDING_2FA_KEY)
+      return null
+    }
+
+    return session
+  } catch {
+    localStorage.removeItem(PENDING_2FA_KEY)
+    return null
+  }
+}
+
 export default function LoginView({ onLogin }) {
   const [tab, setTab] = useState('login')
   const [form, setForm] = useState({ email: '', password: '', nombre: '', telefono: '' })
   const [smsCode, setSmsCode] = useState('')
-  const [pendingSession, setPendingSession] = useState(null)
+  const [pendingSession, setPendingSession] = useState(obtenerSesionPendiente)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const smsInputRef = useRef(null)
   const verificationCode = '123456'
 
   const guardarSesionPendiente = (session) => {
@@ -24,25 +45,6 @@ export default function LoginView({ onLogin }) {
     localStorage.removeItem(PENDING_2FA_KEY)
     setPendingSession(null)
   }
-
-  useEffect(() => {
-    const raw = localStorage.getItem(PENDING_2FA_KEY)
-    if (!raw) return
-
-    try {
-      const session = JSON.parse(raw)
-      const expirada = Date.now() - Number(session.createdAt) > PENDING_2FA_TTL
-
-      if (expirada) {
-        localStorage.removeItem(PENDING_2FA_KEY)
-        return
-      }
-
-      setPendingSession(session)
-    } catch {
-      localStorage.removeItem(PENDING_2FA_KEY)
-    }
-  }, [])
 
   const inputStyle = {
     width: '100%',
@@ -183,7 +185,20 @@ export default function LoginView({ onLogin }) {
     setError('')
   }
 
+  const actualizarSmsCode = (value) => {
+    setSmsCode(value.replace(/\D/g, '').slice(0, 6))
+    if (error && !error.includes('reenviado')) setError('')
+  }
+
+  const focusSmsInput = () => {
+    smsInputRef.current?.focus()
+  }
+
   if (pendingSession) {
+    const smsDigits = smsCode.padEnd(6, ' ').split('')
+    const activeDigitIndex = Math.min(smsCode.length, 5)
+    const isComplete = smsCode.length === 6
+
     return (
       <div style={{
         minHeight: 500,
@@ -194,16 +209,30 @@ export default function LoginView({ onLogin }) {
         padding: '26px 30px 24px',
         color: 'var(--kueski-text)',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div className="sms-verify-hero" style={{ textAlign: 'center', marginBottom: 22 }}>
           <img
             src="/kueski_logo.png"
             alt="Kueski"
-            style={{ width: 128, height: 'auto', marginBottom: 26 }}
+            style={{ width: 116, height: 'auto', marginBottom: 18 }}
           />
+
+          <div className="sms-phone-visual" aria-hidden="true">
+            <div className="sms-phone">
+              <span className="sms-phone-dot sms-phone-dot-a" />
+              <span className="sms-phone-dot sms-phone-dot-b" />
+              <span className="sms-phone-dot sms-phone-dot-c" />
+              <div className="sms-bubble">
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="sms-check">✓</div>
+            </div>
+          </div>
 
           <h1 style={{
             color: 'var(--kueski-text)',
-            fontSize: 27,
+            fontSize: 25,
             lineHeight: 1.1,
             fontWeight: 800,
             margin: 0,
@@ -220,22 +249,37 @@ export default function LoginView({ onLogin }) {
             textAlign: 'center',
             marginBottom: 4,
           }}>
-            Enviamos un código por SMS al número asociado a tu cuenta.
+            Enviamos un código de 6 dígitos por SMS. Se verificará automáticamente al completarlo.
           </div>
 
-          <input
-            style={{
-              ...inputStyle,
-              textAlign: 'center',
-              letterSpacing: 4,
-              fontWeight: 700,
-            }}
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="Código SMS"
-            value={smsCode}
-            onChange={e => setSmsCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          />
+          <div
+            className={`otp-group ${isComplete ? 'otp-complete' : ''}`}
+            onClick={focusSmsInput}
+            role="group"
+            aria-label="Código SMS de 6 dígitos"
+          >
+            <input
+              ref={smsInputRef}
+              className="otp-hidden-input"
+              inputMode="numeric"
+              maxLength={6}
+              autoComplete="one-time-code"
+              aria-label="Código SMS"
+              value={smsCode}
+              onChange={e => actualizarSmsCode(e.target.value)}
+            />
+            {smsDigits.map((digit, index) => (
+              <button
+                key={index}
+                type="button"
+                className={`otp-box ${index === activeDigitIndex && !isComplete ? 'otp-active' : ''} ${digit.trim() ? 'otp-filled' : ''}`}
+                onClick={focusSmsInput}
+                aria-label={`Dígito ${index + 1}`}
+              >
+                {digit.trim() || (index === activeDigitIndex && <span className="otp-cursor" />)}
+              </button>
+            ))}
+          </div>
 
           {error && (
             <div style={{
@@ -251,7 +295,7 @@ export default function LoginView({ onLogin }) {
 
           <button
             onClick={verificarCodigo}
-            disabled={loading}
+            disabled={loading || smsCode.length < 6}
             style={{
               width: '100%',
               height: 50,
@@ -261,7 +305,7 @@ export default function LoginView({ onLogin }) {
               fontSize: 17,
               fontWeight: 500,
               marginTop: 4,
-              opacity: loading ? 0.75 : 1,
+              opacity: loading || smsCode.length < 6 ? 0.72 : 1,
             }}
           >
             {loading ? 'Verificando...' : 'Confirmar código'}

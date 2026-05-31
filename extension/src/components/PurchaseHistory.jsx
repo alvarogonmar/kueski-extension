@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { comprasAPI } from '../services/api.js'
 
 export default function PurchaseHistory({ token }) {
@@ -13,9 +13,9 @@ export default function PurchaseHistory({ token }) {
   }, [token])
 
   if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {[1, 2, 3].map(i => (
-        <div key={i} style={{
+        <div key={i} className="kueski-skeleton" style={{
           height: 72,
           borderRadius: 'var(--radius-md)',
           background: 'var(--kueski-surface)',
@@ -26,8 +26,8 @@ export default function PurchaseHistory({ token }) {
   )
 
   if (compras.length === 0) return (
-    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--kueski-text-muted)' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+    <div className="kueski-empty-state" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--kueski-text-muted)' }}>
+      <div className="kueski-empty-icon" style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
       <div style={{ fontWeight: 600, color: 'var(--kueski-blue)', marginBottom: 6 }}>
         Sin compras aún
       </div>
@@ -38,12 +38,12 @@ export default function PurchaseHistory({ token }) {
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--kueski-blue)', marginBottom: 4 }}>
         Mis compras ({compras.length})
       </div>
       {compras.map(compra => (
-        <div key={compra.id} style={{
+        <div key={compra.id} className="kueski-panel history-item" style={{
           background: 'var(--kueski-surface)',
           borderRadius: 'var(--radius-md)',
           padding: '14px 16px',

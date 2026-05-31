@@ -55,11 +55,11 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
 
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="home-card-stack" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* Banner de moroso */}
       {cuotasVencidas > 0 && (
-        <div style={{
+        <div className="home-card-panel home-card-alert" style={{
           background: nivelRiesgo === 'alto' ? 'rgba(239,68,68,0.1)' : 'rgba(251,146,60,0.1)',
           border: `1.5px solid ${nivelRiesgo === 'alto' ? 'rgba(239,68,68,0.4)' : 'rgba(251,146,60,0.4)'}`,
           borderRadius: 'var(--radius-md)', padding: '12px 14px',
@@ -81,12 +81,12 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
       )}
 
       {/* Saludo */}
-      <div style={{
+      <div className="home-card-panel home-card-welcome" style={{
         background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
         padding: '16px', border: '1px solid var(--kueski-border)',
       }}>
         <div style={{ fontSize: 13, color: 'var(--kueski-text-muted)', marginBottom: 4 }}>Bienvenido</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--kueski-blue)' }}>
+        <div className="home-card-greeting" style={{ fontSize: 18, fontWeight: 700, color: 'var(--kueski-blue)' }}>
           {usuario?.nombre || 'Usuario'} 👋
         </div>
       </div>
@@ -94,7 +94,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
 
       {/* Comercio detectado */}
       {comercio ? (
-        <div style={{
+        <div className="home-card-panel home-card-commerce" style={{
           background: 'var(--kueski-primary-soft)', borderRadius: 'var(--radius-md)',
           padding: '14px 16px', border: '1.5px solid var(--kueski-primary-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -110,6 +110,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
             <button
               onClick={toggleFavorito}
               disabled={loadingFav}
+              className={`home-fav-button ${esFavorito ? 'home-fav-button-active' : ''}`}
               title={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}
               style={{
                 background: 'none', fontSize: 20, cursor: 'pointer',
@@ -122,7 +123,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
           </div>
         </div>
       ) : (
-        <div style={{
+        <div className="home-card-panel" style={{
           background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
           padding: '14px 16px', border: '1px solid var(--kueski-border)',
           textAlign: 'center', color: 'var(--kueski-text-muted)', fontSize: 13,
@@ -134,14 +135,14 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
 
       {/* Monto detectado */}
       {monto && (
-        <div style={{
+        <div className="home-card-panel home-card-amount" style={{
           background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
           padding: '16px', border: '1px solid var(--kueski-border)',
         }}>
           <div style={{ fontSize: 11, color: 'var(--kueski-text-muted)', fontWeight: 600, marginBottom: 6 }}>
             MONTO DETECTADO
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 12 }}>
+          <div className="home-card-amount-value" style={{ fontSize: 28, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 12 }}>
             ${Number(monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
           {/* NUEVO — deshabilitar botón si tiene cuenta restringida */}
@@ -163,20 +164,20 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
 
       {/* Crédito disponible (viene de perfil_financiero) */}
       {perfil && !perfilEnEvaluacion && (
-        <div style={{
+        <div className="home-card-panel home-card-credit" style={{
           background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
           padding: '14px 16px', border: '1px solid var(--kueski-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{ fontSize: 13, color: 'var(--kueski-text-muted)' }}>Crédito disponible</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--kueski-primary)' }}>
+          <span className="home-card-credit-value" style={{ fontSize: 16, fontWeight: 700, color: 'var(--kueski-primary)' }}>
             ${creditoDisponible.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </span>
         </div>
       )}
 
       {perfilEnEvaluacion && (
-        <div style={{
+        <div className="home-card-panel home-card-evaluation" style={{
           background: 'rgba(255,184,0,0.08)',
           borderRadius: 'var(--radius-md)',
           padding: '14px 16px',

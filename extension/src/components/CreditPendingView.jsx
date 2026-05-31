@@ -9,7 +9,7 @@ export default function CreditPendingView({ usuario }) {
       padding: '26px 30px 24px',
       color: 'var(--kueski-text)',
     }}>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+      <div className="kueski-empty-state" style={{ textAlign: 'center', marginBottom: 24 }}>
         <img
           src="/kueski_logo.png"
           alt="Kueski"
@@ -27,13 +27,13 @@ export default function CreditPendingView({ usuario }) {
         </h1>
       </div>
 
-      <div style={{
+      <div className="kueski-animated-stack" style={{
         textAlign: 'center',
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
       }}>
-        <div style={{
+        <div className="kueski-panel" style={{
           fontSize: 15,
           color: 'var(--kueski-text-muted)',
           lineHeight: 1.55,

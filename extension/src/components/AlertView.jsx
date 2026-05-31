@@ -87,7 +87,7 @@ export default function AlertasView({ token, onCargado }) {
       }
     }
     cargar()
-  }, [])
+  }, [onCargado, token])
 
   const toggleNotif = async () => {
     try {
@@ -154,13 +154,13 @@ export default function AlertasView({ token, onCargado }) {
     new Date(fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-      <div style={{ color: 'var(--kueski-primary)', fontSize: 32 }}>⏳</div>
+    <div className="kueski-loading-state" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+      <div className="kueski-spinner" aria-label="Cargando alertas" />
     </div>
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {cuotaPago && (
         <PaymentModal
           cuota={cuotaPago}
@@ -171,7 +171,7 @@ export default function AlertasView({ token, onCargado }) {
       )}
 
       {/* Toggle notificaciones */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="kueski-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-text)' }}>Alertas</span>
         <button
           onClick={toggleNotif}
@@ -188,7 +188,7 @@ export default function AlertasView({ token, onCargado }) {
       </div>
 
       {mensajePago && (
-        <div style={{
+        <div className="kueski-panel kueski-success-pop" style={{
           background: 'rgba(0,176,80,0.1)',
           border: '1.5px solid rgba(0,176,80,0.3)',
           borderRadius: 'var(--radius-md)',
@@ -219,7 +219,7 @@ export default function AlertasView({ token, onCargado }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {vencidas.map(cuota => (
-              <div key={cuota.id} style={{
+              <div key={cuota.id} className="kueski-panel alert-item alert-item-danger" style={{
                 background: 'rgba(239,68,68,0.06)',
                 borderRadius: 'var(--radius-md)',
                 border: '1.5px solid rgba(239,68,68,0.35)',
@@ -248,7 +248,7 @@ export default function AlertasView({ token, onCargado }) {
                   }}>
                     Vencida
                   </div>
-                  <button onClick={() => abrirPago(cuota)} disabled={cargandoDesgloseId === cuota.id} style={{
+                  <button className="kueski-mini-button" onClick={() => abrirPago(cuota)} disabled={cargandoDesgloseId === cuota.id} style={{
                     marginTop: 8, padding: '6px 12px', borderRadius: 8,
                     background: 'var(--kueski-primary)', color: 'white',
                     fontSize: 11, fontWeight: 800,
@@ -272,7 +272,7 @@ export default function AlertasView({ token, onCargado }) {
         </div>
 
         {cuotas.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--kueski-text-muted)', fontSize: 13 }}>
+          <div className="kueski-empty-state" style={{ textAlign: 'center', padding: '24px 0', color: 'var(--kueski-text-muted)', fontSize: 13 }}>
             No tienes vencimientos próximos
           </div>
         ) : (
@@ -282,7 +282,7 @@ export default function AlertasView({ token, onCargado }) {
               const badge = badgeColor(dias)
               const dotColor = dias <= 7 ? '#ef4444' : '#f97316'
               return (
-                <div key={cuota.id} style={{
+                <div key={cuota.id} className="kueski-panel alert-item" style={{
                   background: 'var(--kueski-card)',
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--kueski-border)',
@@ -311,7 +311,7 @@ export default function AlertasView({ token, onCargado }) {
                     }}>
                       {dias < 0 ? 'Vencida' : `en ${dias} día${dias === 1 ? '' : 's'}`}
                     </div>
-                    <button onClick={() => abrirPago(cuota)} disabled={cargandoDesgloseId === cuota.id} style={{
+                    <button className="kueski-mini-button" onClick={() => abrirPago(cuota)} disabled={cargandoDesgloseId === cuota.id} style={{
                       marginTop: 8, padding: '6px 12px', borderRadius: 8,
                       background: 'var(--kueski-primary)', color: 'white',
                       fontSize: 11, fontWeight: 800,
@@ -335,7 +335,7 @@ export default function AlertasView({ token, onCargado }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {historial.map(cuota => (
-              <div key={cuota.id} style={{
+              <div key={cuota.id} className="kueski-panel history-item" style={{
                 background: 'var(--kueski-card)',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--kueski-border)',

@@ -100,12 +100,12 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
   }
 
   return (
-    <div style={{
+    <div className="payment-modal-backdrop" style={{
       position: 'fixed', inset: 0, zIndex: 50,
       background: 'rgba(0,72,248,0.28)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
     }}>
-      <div style={{
+      <div className="payment-modal-sheet" style={{
         width: '100%', maxWidth: 380, maxHeight: '92vh', overflow: 'auto',
         background: 'var(--kueski-bg)',
         borderRadius: '18px 18px 0 0',
@@ -121,7 +121,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
               {cuota?.comercio} · Cuota {cuota?.numero_cuota}
             </div>
           </div>
-          <button onClick={onClose} style={{
+          <button className="kueski-icon-button" onClick={onClose} style={{
             width: 30, height: 30, borderRadius: '50%',
             background: 'var(--kueski-surface)', color: 'var(--kueski-text-muted)',
             fontSize: 18,
@@ -131,7 +131,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
         </div>
 
         {desglose && (
-          <div style={{
+          <div className="kueski-panel" style={{
             background: 'var(--kueski-surface)',
             border: '1px solid var(--kueski-border)',
             borderRadius: 'var(--radius-md)',
@@ -182,7 +182,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-          <button onClick={() => { setMetodo('tarjeta'); setError('') }} style={{
+          <button className="kueski-choice-button" onClick={() => { setMetodo('tarjeta'); setError('') }} style={{
             padding: '11px 8px', borderRadius: 'var(--radius-sm)', fontWeight: 700,
             background: metodo === 'tarjeta' ? 'var(--kueski-primary)' : 'var(--kueski-surface)',
             color: metodo === 'tarjeta' ? 'white' : 'var(--kueski-text)',
@@ -190,7 +190,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
           }}>
             Tarjeta
           </button>
-          <button onClick={() => { setMetodo('oxxo'); setError('') }} style={{
+          <button className="kueski-choice-button" onClick={() => { setMetodo('oxxo'); setError('') }} style={{
             padding: '11px 8px', borderRadius: 'var(--radius-sm)', fontWeight: 700,
             background: metodo === 'oxxo' ? 'var(--kueski-primary)' : 'var(--kueski-surface)',
             color: metodo === 'oxxo' ? 'white' : 'var(--kueski-text)',
@@ -201,7 +201,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
         </div>
 
         {metodo === 'tarjeta' ? (
-          <div style={{
+          <div className="kueski-panel" style={{
             background: 'var(--kueski-surface)', border: '1px solid var(--kueski-border)',
             borderRadius: 'var(--radius-md)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10,
           }}>
@@ -217,7 +217,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
             </div>
           </div>
         ) : (
-          <div style={{
+          <div className="kueski-panel kueski-result-panel" style={{
             background: 'var(--kueski-primary-soft)', border: '1.5px solid var(--kueski-primary-border)',
             borderRadius: 'var(--radius-md)', padding: '18px 14px', textAlign: 'center',
           }}>
@@ -234,7 +234,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
         )}
 
         {error && (
-          <div style={{ color: 'var(--kueski-danger)', fontSize: 12, textAlign: 'center', marginTop: 10 }}>
+          <div className="kueski-error-shake" style={{ color: 'var(--kueski-danger)', fontSize: 12, textAlign: 'center', marginTop: 10 }}>
             {error}
           </div>
         )}

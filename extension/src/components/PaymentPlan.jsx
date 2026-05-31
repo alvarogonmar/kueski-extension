@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { calculadoraAPI } from '../services/api.js'
 
 const OPCIONES_COMPLETAS = [2, 4, 6, 8, 10, 12]
@@ -43,32 +43,29 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
 
   const montoNum = parseFloat(monto) || 0
   const restringido = opciones.length === 0
+  const quincenasActivas = opciones.includes(quincenas) ? quincenas : opciones[0] || 0
 
   useEffect(() => {
-    if (!opciones.includes(quincenas)) {
-      setQuincenas(opciones[0] || 0)
-      setResultado(null)
+    if (!montoNum || restringido || !quincenasActivas) return
+
+    let activo = true
+    const simular = async () => {
+      setLoading(true)
+      try {
+        const data = await calculadoraAPI.simular(token, montoNum, quincenasActivas)
+        if (activo) setResultado(data)
+      } catch {
+        // Cálculo local como fallback
+        const porQuincena = montoNum / quincenasActivas
+        if (activo) setResultado({ monto_por_quincena: porQuincena, total: montoNum, quincenas: quincenasActivas })
+      } finally {
+        if (activo) setLoading(false)
+      }
     }
-  }, [opciones, quincenas])
 
-  useEffect(() => {
-    if (!montoNum || restringido || !quincenas) return
     simular()
-  }, [quincenas, monto, restringido])
-
-  const simular = async () => {
-    setLoading(true)
-    try {
-      const data = await calculadoraAPI.simular(token, montoNum, quincenas)
-      setResultado(data)
-    } catch {
-      // Cálculo local como fallback
-      const porQuincena = montoNum / quincenas
-      setResultado({ monto_por_quincena: porQuincena, total: montoNum, quincenas })
-    } finally {
-      setLoading(false)
-    }
-  }
+    return () => { activo = false }
+  }, [montoNum, quincenasActivas, restringido, token])
 
   const personalizacionStyle = {
     success: {
@@ -104,9 +101,9 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Monto */}
-      <div style={{
+      <div className="kueski-hero-panel kueski-panel" style={{
         background: 'var(--kueski-blue)',
         borderRadius: 'var(--radius-md)',
         padding: '20px', textAlign: 'center',
@@ -114,7 +111,7 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>
           TOTAL DE COMPRA
         </div>
-        <div style={{ fontSize: 32, fontWeight: 800, color: 'white' }}>
+        <div className="kueski-number-pop" style={{ fontSize: 32, fontWeight: 800, color: 'white' }}>
           ${montoNum.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
         </div>
         {comercio && (
@@ -124,7 +121,7 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
         )}
       </div>
 
-      <div style={{
+      <div className={`kueski-panel kueski-status-${personalizacion.tono}`} style={{
         ...personalizacionStyle,
         borderRadius: 'var(--radius-md)',
         padding: '12px 14px',
@@ -138,7 +135,7 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
       </div>
 
       {/* Selector de quincenas */}
-      <div style={{
+      <div className="kueski-panel" style={{
         background: 'var(--kueski-surface)',
         borderRadius: 'var(--radius-md)',
         padding: '16px',
@@ -162,13 +159,13 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {opciones.map(q => (
-              <button key={q} onClick={() => setQuincenas(q)} style={{
+              <button key={q} className="kueski-choice-button" onClick={() => setQuincenas(q)} style={{
                 padding: '10px',
                 borderRadius: 'var(--radius-sm)',
                 fontWeight: 700, fontSize: 14,
-                background: quincenas === q ? 'var(--kueski-primary)' : 'var(--kueski-surface-2)',
-                color: quincenas === q ? 'white' : 'var(--kueski-text)',
-                border: quincenas === q ? 'none' : '1px solid var(--kueski-border)',
+                background: quincenasActivas === q ? 'var(--kueski-primary)' : 'var(--kueski-surface-2)',
+                color: quincenasActivas === q ? 'white' : 'var(--kueski-text)',
+                border: quincenasActivas === q ? 'none' : '1px solid var(--kueski-border)',
                 transition: 'all 0.15s',
               }}>
                 {q}
@@ -180,7 +177,7 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
 
       {/* Resultado */}
       {resultado && !restringido && (
-        <div style={{
+        <div className="kueski-panel kueski-result-panel" style={{
           background: 'var(--kueski-primary-soft)',
           borderRadius: 'var(--radius-md)',
           padding: '20px',
@@ -194,16 +191,16 @@ export default function PaymentPlan({ monto, comercio, token, nivelRiesgo, cuota
             <button
                 className="btn-primary"
                 style={{ marginTop: 8 }}
-                onClick={() => onPagar(quincenas)}
+                onClick={() => onPagar(quincenasActivas)}
             >
-                Pagar con Kueski Pay 🔐
+                Pagar con Kueski Pay
             </button>
             )}
-          <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--kueski-blue)' }}>
+          <div className="kueski-number-pop" style={{ fontSize: 36, fontWeight: 800, color: 'var(--kueski-blue)' }}>
             {loading ? '...' : `$${Number(resultado.monto_por_quincena).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
           </div>
           <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', marginTop: 6 }}>
-            en {quincenas} quincenas
+            en {quincenasActivas} quincenas
           </div>
         </div>
       )}

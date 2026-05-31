@@ -6,8 +6,8 @@ export default function NoComercioView() {
   ]
 
   return (
-    <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🛍️</div>
+    <div className="kueski-empty-state" style={{ textAlign: 'center', padding: '24px 16px' }}>
+      <div className="kueski-empty-icon" style={{ fontSize: 48, marginBottom: 12 }}>🛍️</div>
       <h3 style={{ color: 'var(--kueski-text)', marginBottom: 8, fontSize: 16 }}>
         No estás en una tienda afiliada
       </h3>
@@ -15,10 +15,11 @@ export default function NoComercioView() {
         Visita una de nuestras tiendas afiliadas para pagar a quincenas con Kueski Pay
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {tiendas.map(t => (
           <a
             key={t.nombre}
+            className="kueski-panel store-link"
             href={t.url}
             target="_blank"
             rel="noreferrer"

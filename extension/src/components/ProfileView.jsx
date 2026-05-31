@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+/* global chrome */
+import { useState, useEffect } from 'react'
 import { pinAPI, preferenciasAPI, favoritosAPI } from '../services/api.js'
 
 
@@ -29,7 +30,9 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           ])
           if (data) setPrefs(data)
           setFavoritos(favs || [])
-        } catch {}
+        } catch {
+          setFavoritos([])
+        }
 
         // Verificar si ya tiene PIN sin contar intentos fallidos
         try {
@@ -40,20 +43,16 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
         }
       }
       cargar()
-    }, [])
-
-
-  // NUEVO — si no tiene PIN, saltar directo al paso 2 al abrir cambiarPin
-  useEffect(() => {
-    if (seccion === 'cambiarPin' && !tienePin) setPaso(2)
-  }, [seccion])
+    }, [token])
 
 
   const quitarFavorito = async (dominio) => {
     try {
       await favoritosAPI.remove(token, dominio)
       setFavoritos(favs => favs.filter(f => f.dominio !== dominio))
-    } catch {}
+    } catch {
+      setError('No se pudo quitar de favoritos')
+    }
   }
 
 
@@ -141,13 +140,14 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
 
   // — Vista cambiar/crear PIN —
   if (seccion === 'cambiarPin') return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="kueski-animated-stack profile-view" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={volverPerfil}
+        className="profile-back-button"
         style={{ background: 'none', color: 'var(--kueski-text-muted)', fontSize: 13, textAlign: 'left' }}>
         ← Volver
       </button>
-      <div style={{ textAlign: 'center', marginBottom: 4 }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>🔒</div>
+      <div className="kueski-empty-state" style={{ textAlign: 'center', marginBottom: 4 }}>
+        <div className="kueski-empty-icon" style={{ fontSize: 32, marginBottom: 8 }}>🔒</div>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-text)' }}>
           {/* Título dinámico según si tiene PIN y el paso */}
           {!tienePin ? 'Crea tu PIN' : paso === 1 ? 'Ingresa tu PIN actual' : 'Ingresa tu PIN nuevo'}
@@ -157,6 +157,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
         </div>
       </div>
       <input
+        className="profile-pin-input"
         type="password"
         inputMode="numeric"
         maxLength={4}
@@ -170,7 +171,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           background: 'var(--kueski-surface)', color: 'var(--kueski-text)',
         }}
       />
-      {error && <div style={{ color: 'var(--kueski-danger)', fontSize: 12, textAlign: 'center' }}>{error}</div>}
+      {error && <div className="kueski-error-shake" style={{ color: 'var(--kueski-danger)', fontSize: 12, textAlign: 'center' }}>{error}</div>}
       <button className="btn-primary" disabled={loading}
         onClick={paso === 1 ? handlePinActual : handlePinNuevo}>
         {loading ? 'Verificando...' : !tienePin ? 'Crear PIN' : paso === 1 ? 'Continuar' : 'Guardar PIN nuevo'}
@@ -181,20 +182,21 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
 
   // Vista preferencias
   if (seccion === 'preferencias') return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="kueski-animated-stack profile-view" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={volverPerfil}
+        className="profile-back-button"
         style={{ background: 'none', color: 'var(--kueski-text-muted)', fontSize: 13, textAlign: 'left' }}>
         ← Volver
       </button>
 
-      <div style={{ textAlign: 'center', marginBottom: 4 }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>⚙️</div>
+      <div className="kueski-empty-state" style={{ textAlign: 'center', marginBottom: 4 }}>
+        <div className="kueski-empty-icon" style={{ fontSize: 32, marginBottom: 8 }}>⚙️</div>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--kueski-text)' }}>
           Preferencias
         </div>
       </div>
 
-      <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+      <div className="kueski-panel profile-section" style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
         border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
 
         {/* Notificaciones email */}
@@ -208,7 +210,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
               Recibe recordatorios en tu correo
             </div>
           </div>
-          <div onClick={() => setPrefs(p => ({ ...p, notif_email: !p.notif_email }))}
+          <div className="profile-toggle" onClick={() => setPrefs(p => ({ ...p, notif_email: !p.notif_email }))}
             style={{
               width: 44, height: 24, borderRadius: 12, cursor: 'pointer',
               background: prefs.notif_email ? 'var(--kueski-primary)' : 'var(--kueski-border)',
@@ -229,13 +231,16 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           justifyContent: 'space-between', borderBottom: '1px solid var(--kueski-border)' }}>
           <div>
             <div style={{ fontSize: 14, color: 'var(--kueski-text)', fontWeight: 500 }}>
-              🔔 Notificaciones push
+              <span className="settings-notification-label">
+                <span className="nav-notification-icon settings-notification-icon" />
+                Notificaciones push
+              </span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--kueski-text-muted)' }}>
               Alertas en el navegador
             </div>
           </div>
-          <div onClick={() => setPrefs(p => ({ ...p, notif_push: !p.notif_push }))}
+          <div className="profile-toggle" onClick={() => setPrefs(p => ({ ...p, notif_push: !p.notif_push }))}
             style={{
               width: 44, height: 24, borderRadius: 12, cursor: 'pointer',
               background: prefs.notif_push ? 'var(--kueski-primary)' : 'var(--kueski-border)',
@@ -258,7 +263,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {[1, 3, 5, 7].map(d => (
-              <button key={d} onClick={() => setPrefs(p => ({ ...p, dias_antes_recordatorio: d }))}
+              <button key={d} className="kueski-choice-button" onClick={() => setPrefs(p => ({ ...p, dias_antes_recordatorio: d }))}
                 style={{
                   flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                   border: '1.5px solid',
@@ -278,7 +283,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       </div>
 
       {mensajePrefs && (
-        <div style={{
+        <div className={mensajePrefs.includes('✅') ? 'kueski-success-pop' : 'kueski-error-shake'} style={{
           textAlign: 'center', fontSize: 13, padding: '8px',
           color: mensajePrefs.includes('✅') ? 'var(--kueski-primary)' : 'var(--kueski-danger)'
         }}>
@@ -295,10 +300,10 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
 
   // — Vista principal del perfil —
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="kueski-animated-stack profile-view" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {mensaje && (
-        <div style={{ background: 'var(--kueski-success-soft)', border: '1px solid var(--kueski-success-border)',
+        <div className="kueski-panel kueski-success-pop" style={{ background: 'var(--kueski-success-soft)', border: '1px solid var(--kueski-success-border)',
           borderRadius: 'var(--radius-md)', padding: '10px 14px',
           color: 'var(--kueski-primary)', fontSize: 13, textAlign: 'center' }}>
           {mensaje}
@@ -306,7 +311,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       )}
 
       {/* Datos del usuario */}
-      <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+      <div className="kueski-panel profile-section" style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
         border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
           color: 'var(--kueski-text-muted)', textTransform: 'uppercase', letterSpacing: 1,
@@ -330,7 +335,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       </div>
 
       {/* Seguridad */}
-      <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+      <div className="kueski-panel profile-section" style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
         border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
           color: 'var(--kueski-text-muted)', textTransform: 'uppercase', letterSpacing: 1,
@@ -338,7 +343,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           Seguridad
         </div>
         {/* Texto dinámico según si tiene PIN */}
-        <button onClick={() => { setSeccion('cambiarPin'); setMensaje('') }} style={{
+        <button className="profile-row-button" onClick={() => { setSeccion('cambiarPin'); setPaso(tienePin ? 1 : 2); setMensaje('') }} style={{
           width: '100%', padding: '14px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', background: 'none',
           color: 'var(--kueski-text)', fontSize: 14,
@@ -349,14 +354,14 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       </div>
 
       {/* Configuración — Preferencias */}
-      <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+      <div className="kueski-panel profile-section" style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
         border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
           color: 'var(--kueski-text-muted)', textTransform: 'uppercase', letterSpacing: 1,
           borderBottom: '1px solid var(--kueski-border)' }}>
           Configuración
         </div>
-        <button onClick={() => setSeccion('preferencias')} style={{
+        <button className="profile-row-button" onClick={() => setSeccion('preferencias')} style={{
           width: '100%', padding: '14px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', background: 'none',
           color: 'var(--kueski-text)', fontSize: 14,
@@ -368,7 +373,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
 
       {/* Mis favoritos (solo si hay alguno) */}
       {favoritos.length > 0 && (
-        <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+        <div className="kueski-panel profile-section" style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
           border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
             color: 'var(--kueski-text-muted)', textTransform: 'uppercase', letterSpacing: 1,
@@ -376,7 +381,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
             Mis favoritos
           </div>
           {favoritos.map((fav, i) => (
-            <div key={fav.dominio} style={{
+            <div key={fav.dominio} className="profile-list-row" style={{
               padding: '12px 16px', display: 'flex', alignItems: 'center',
               justifyContent: 'space-between',
               borderBottom: i < favoritos.length - 1 ? '1px solid var(--kueski-border)' : 'none'
@@ -392,7 +397,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
                   </div>
                 </div>
               </div>
-              <button onClick={() => quitarFavorito(fav.dominio)} style={{
+              <button className="kueski-icon-button" onClick={() => quitarFavorito(fav.dominio)} style={{
                 background: 'none', fontSize: 16, cursor: 'pointer',
                 color: 'var(--kueski-text-muted)'
               }}>
@@ -404,14 +409,14 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
       )}
 
       {/* Accesos rápidos */}
-      <div style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
+      <div className="kueski-panel profile-section" style={{ background: 'var(--kueski-card)', borderRadius: 'var(--radius-md)',
         border: '1px solid var(--kueski-border)', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700,
           color: 'var(--kueski-text-muted)', textTransform: 'uppercase', letterSpacing: 1,
           borderBottom: '1px solid var(--kueski-border)' }}>
           Accesos rápidos
         </div>
-        <button onClick={onVerHistorial} style={{
+        <button className="profile-row-button" onClick={onVerHistorial} style={{
           width: '100%', padding: '14px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', background: 'none',
           color: 'var(--kueski-text)', fontSize: 14,
@@ -420,7 +425,7 @@ export default function ProfileView({ usuario, token, onVerHistorial }) {
           <span>🧾 Mis compras</span>
           <span style={{ color: 'var(--kueski-text-muted)' }}>→</span>
         </button>
-        <button onClick={abrirKueski} style={{
+        <button className="profile-row-button" onClick={abrirKueski} style={{
           width: '100%', padding: '14px', display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', background: 'none',
           color: 'var(--kueski-text)', fontSize: 14,

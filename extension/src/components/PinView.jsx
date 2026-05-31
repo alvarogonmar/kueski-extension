@@ -13,7 +13,7 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
     try {
       await pinAPI.verificar(token, pin)
       onSuccess(pin)
-    } catch (e) {
+    } catch {
       setError('PIN incorrecto, intenta de nuevo')
     } finally {
       setLoading(false)
@@ -21,16 +21,16 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="kueski-animated-stack" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Resumen de compra */}
-      <div style={{
+      <div className="kueski-hero-panel kueski-panel" style={{
         background: 'var(--kueski-blue)', borderRadius: 'var(--radius-md)',
         padding: '20px', textAlign: 'center',
       }}>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>
           CONFIRMANDO COMPRA
         </div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: 'white' }}>
+        <div className="kueski-number-pop" style={{ fontSize: 28, fontWeight: 800, color: 'white' }}>
           ${Number(monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
         </div>
         <div style={{ fontSize: 13, color: 'var(--kueski-primary)', marginTop: 4 }}>
@@ -39,7 +39,7 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
       </div>
 
       {/* Input PIN */}
-      <div style={{
+      <div className="kueski-panel" style={{
         background: 'var(--kueski-surface)', borderRadius: 'var(--radius-md)',
         padding: '20px', border: '1px solid var(--kueski-border)',
       }}>
@@ -63,7 +63,7 @@ export default function PinView({ token, onSuccess, onCancel, monto, quincenas }
           }}
         />
         {error && (
-          <div style={{ color: 'var(--kueski-danger)', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+          <div className="kueski-error-shake" style={{ color: 'var(--kueski-danger)', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
             {error}
           </div>
         )}

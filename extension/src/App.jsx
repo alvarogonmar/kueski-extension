@@ -309,13 +309,14 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--kueski-bg)' }}>
       {/* Header */}
-      <div style={{ background: 'var(--kueski-blue)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>kueski</span>
-          <span style={{ fontSize: 11, color: 'white', fontWeight: 700, background: 'rgba(255,255,255,0.18)', padding: '2px 6px', borderRadius: 4 }}>pay</span>
-        </div>
+      <div className="app-header">
+        <img
+          src="/kueski_logo.png"
+          alt="Kueski"
+          className="app-header-logo"
+        />
         {comercio && <span className="tag tag-success">● {comercio.nombre}</span>}
-        <button onClick={handleLogout} style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, background: 'none' }}>
+        <button onClick={handleLogout} className="app-header-logout">
           Salir
         </button>
       </div>

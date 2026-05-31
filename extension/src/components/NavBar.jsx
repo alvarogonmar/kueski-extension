@@ -1,14 +1,32 @@
-import React from 'react'
-
-
 const tabs = [
-  { id: 'home', label: 'Inicio', icon: '⊙' },
+  { id: 'home', label: 'Inicio', icon: 'home' },
   { id: 'plan', label: 'Plan', icon: '◈' },
-  { id: 'alertas', label: 'Alertas', icon: '🔔' },
-  { id: 'history', label: 'Historial', icon: '☰' },
-  { id: 'profile', label: 'Perfil', icon: '◉' },
+  { id: 'alertas', label: 'Alertas', icon: 'notification' },
+  { id: 'history', label: 'Historial', icon: 'movements' },
+  { id: 'profile', label: 'Perfil', icon: 'profile' },
 ]
 
+const renderIcon = (tab, active) => {
+  const activeClass = active ? ' nav-icon-active' : ''
+
+  if (tab.icon === 'notification') {
+    return <span className={`nav-notification-icon${active ? ' nav-notification-icon-active' : ''}`} />
+  }
+
+  if (tab.icon === 'home') {
+    return <span className={`nav-css-icon nav-home-icon${activeClass}`} />
+  }
+
+  if (tab.icon === 'movements') {
+    return <span className={`nav-css-icon nav-movements-icon${activeClass}`} />
+  }
+
+  if (tab.icon === 'profile') {
+    return <span className={`nav-css-icon nav-profile-icon${activeClass}`} />
+  }
+
+  return tab.icon
+}
 
 export default function NavBar({ view, setView, alertasPendientes = 0 }) {
   return (
@@ -28,7 +46,7 @@ export default function NavBar({ view, setView, alertasPendientes = 0 }) {
           transition: 'all 0.15s', position: 'relative'
         }}>
           <span style={{ position: 'relative' }}>
-            {tab.icon}
+            {renderIcon(tab, view === tab.id)}
             {/* Badge rojo en Alertas si hay vencimientos pendientes */}
             {tab.id === 'alertas' && alertasPendientes > 0 && (
               <span style={{
