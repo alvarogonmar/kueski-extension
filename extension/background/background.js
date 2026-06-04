@@ -17,7 +17,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       chrome.storage.session.get(['vistaActiva'], (session) => {
         const vistaEnFlujo = ['pin', 'cvv'].includes(session.vistaActiva)
         if (!vistaEnFlujo) {
-          chrome.storage.local.remove(['last_comercio', 'last_monto'])
+          chrome.storage.local.remove(['last_comercio', 'last_monto', 'last_origen_monto'])
         }
       })
     }
@@ -35,11 +35,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 
   if (message.tipo === 'MONTO') {
-    chrome.storage.local.set({ last_monto: message.monto })
+    chrome.storage.local.set({
+      last_monto: message.monto,
+      last_origen_monto: message.origen || 'producto'
+    })
   }
 
   if (message.tipo === 'LIMPIAR_MONTO') {
-    chrome.storage.local.remove(['last_monto'])
+    chrome.storage.local.remove(['last_monto', 'last_origen_monto'])
   }
 
 

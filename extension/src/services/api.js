@@ -31,10 +31,20 @@ export const comprasAPI = {
    actualizarVencidas: (token) =>
     request('/compras/actualizar-vencidas', { method: 'POST' }, token),
   getDesgloseCuota: (token, id) => request(`/compras/cuotas/${id}/desglose`, {}, token),
+  getDesgloseCuotas: (token, cuota_ids) =>
+    request('/compras/cuotas/desglose', {
+      method: 'POST',
+      body: JSON.stringify({ cuota_ids })
+    }, token),
   pagarCuota: (token, id, body = {}) =>
     request(`/compras/cuotas/${id}/pagar`, {
       method: 'POST',
       body: JSON.stringify(body)
+    }, token),
+  pagarCuotas: (token, cuota_ids, body = {}) =>
+    request('/compras/cuotas/pagar', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, cuota_ids })
     }, token),
 }
 

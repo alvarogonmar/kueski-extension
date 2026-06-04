@@ -25,6 +25,7 @@ export default function App() {
   const [usuario, setUsuario] = useState(null)
   const [view, setView] = useState('home')
   const [monto, setMonto] = useState(null)
+  const [origenMonto, setOrigenMonto] = useState(null)
   const [comercio, setComercio] = useState(null)
   const [loading, setLoading] = useState(true)
   const [pinConfirmado, setPinConfirmado] = useState(null)
@@ -53,7 +54,8 @@ export default function App() {
       if (!tienda) {
         setComercio(null)
         setMonto(null)
-        chrome.storage?.local?.remove(['last_comercio', 'last_monto'])
+        setOrigenMonto(null)
+        chrome.storage?.local?.remove(['last_comercio', 'last_monto', 'last_origen_monto'])
         return
       }
 
@@ -100,13 +102,14 @@ export default function App() {
       try {
         if (typeof chrome !== 'undefined' && chrome.storage) {
           // Leer sesión + comercio y monto guardados por background.js
-          chrome.storage.local.get(['jwt', 'usuario', 'last_comercio', 'last_monto'], (result) => {
+          chrome.storage.local.get(['jwt', 'usuario', 'last_comercio', 'last_monto', 'last_origen_monto'], (result) => {
             if (result.jwt) {
               setToken(result.jwt)
               setUsuario(result.usuario)
             }
             if (result.last_comercio) setComercio(result.last_comercio)
             if (result.last_monto) setMonto(result.last_monto)
+            if (result.last_origen_monto) setOrigenMonto(result.last_origen_monto)
 
 
 
@@ -143,11 +146,16 @@ export default function App() {
       chrome.runtime.onMessage.addListener((msg) => {
         if (msg.tipo === 'MONTO') {
           setMonto(msg.monto)
-          chrome.storage.local.set({ last_monto: msg.monto })
+          setOrigenMonto(msg.origen || 'producto')
+          chrome.storage.local.set({
+            last_monto: msg.monto,
+            last_origen_monto: msg.origen || 'producto'
+          })
         }
         if (msg.tipo === 'LIMPIAR_MONTO') {
           setMonto(null)
-          chrome.storage.local.remove(['last_monto'])
+          setOrigenMonto(null)
+          chrome.storage.local.remove(['last_monto', 'last_origen_monto'])
         }
         if (msg.tipo === 'COMERCIO') {
           setComercio(msg.comercio)
@@ -157,6 +165,7 @@ export default function App() {
         if (msg.tipo === 'SIN_COMERCIO') {
           setComercio(null)
           setMonto(null)
+          setOrigenMonto(null)
         }
       })
     }
@@ -213,13 +222,14 @@ export default function App() {
     setCuotasVencidas(0)
     if (typeof chrome !== 'undefined' && chrome.storage) {
       //  Al salir también limpia comercio y monto
-      chrome.storage.local.remove(['jwt', 'usuario', 'last_comercio', 'last_monto'])
+      chrome.storage.local.remove(['jwt', 'usuario', 'last_comercio', 'last_monto', 'last_origen_monto'])
     } else {
       localStorage.removeItem('kueski_jwt')
       localStorage.removeItem('kueski_usuario')
     }
     setComercio(null)
     setMonto(null)
+    setOrigenMonto(null)
     limpiarVista() // también limpia la vista guardada
   }
 
@@ -293,6 +303,7 @@ export default function App() {
         default: return comercio ? ( // solo muestra HomeCard si hay comercio
         <HomeCard
             usuario={usuario} comercio={comercio} monto={monto}
+            origenMonto={origenMonto}
             onVerPlan={() => navegarA('plan')} token={token}
             nivelRiesgo={nivelRiesgo}       
             cuotasVencidas={cuotasVencidas} 

@@ -24,6 +24,7 @@ export default function AlertasView({ token, onCargado }) {
   const [desglosePago, setDesglosePago] = useState(null)
   const [cargandoDesgloseId, setCargandoDesgloseId] = useState(null)
   const [mensajePago, setMensajePago] = useState('')
+  const [seleccionadas, setSeleccionadas] = useState([])
 
   useEffect(() => {
     const cargar = async () => {
@@ -112,6 +113,44 @@ export default function AlertasView({ token, onCargado }) {
     }
   }
 
+  const todasLasCuotas = [...vencidas, ...cuotas]
+  const cuotasSeleccionadas = todasLasCuotas.filter(cuota => seleccionadas.includes(cuota.id))
+  const totalSeleccionado = cuotasSeleccionadas.reduce((acc, cuota) => acc + Number(cuota.monto || 0), 0)
+
+  const toggleSeleccion = (cuotaId) => {
+    setSeleccionadas(prev =>
+      prev.includes(cuotaId)
+        ? prev.filter(id => id !== cuotaId)
+        : [...prev, cuotaId]
+    )
+    setMensajePago('')
+  }
+
+  const limpiarSeleccion = () => setSeleccionadas([])
+
+  const abrirPagoSeleccionado = async () => {
+    if (cuotasSeleccionadas.length === 0) return
+    setCargandoDesgloseId('multiple')
+    setMensajePago('')
+    try {
+      const idsSeleccionados = cuotasSeleccionadas.map(cuota => cuota.id)
+      const desglose = await comprasAPI.getDesgloseCuotas(token, idsSeleccionados)
+      setCuotaPago({
+        id: 'multiple',
+        comercio: 'Pago seleccionado',
+        numero_cuota: `${cuotasSeleccionadas.length} cuotas`,
+        monto: totalSeleccionado,
+        multiple: true,
+        cuotas: cuotasSeleccionadas,
+      })
+      setDesglosePago(desglose)
+    } catch (e) {
+      setMensajePago(e.message || 'No se pudo cargar el desglose del pago')
+    } finally {
+      setCargandoDesgloseId(null)
+    }
+  }
+
   const actualizarBadge = (vencidasActuales, proximasActuales) => {
     if (onCargado) {
       onCargado(
@@ -121,25 +160,46 @@ export default function AlertasView({ token, onCargado }) {
   }
 
   const confirmarPago = async (cuotaPagada) => {
-    await comprasAPI.pagarCuota(token, cuotaPagada.id, {
-      metodo_pago: cuotaPagada.metodo_pago,
-      referencia_pago: cuotaPagada.referencia_pago,
-    })
+    const pagoMultiple = cuotaPagada.multiple
+    const idsPagados = pagoMultiple
+      ? cuotaPagada.cuotas.map(cuota => cuota.id)
+      : [cuotaPagada.id]
 
-    const quitarCuota = cuota => cuota.id !== cuotaPagada.id
+    if (pagoMultiple) {
+      await comprasAPI.pagarCuotas(token, idsPagados, {
+        metodo_pago: cuotaPagada.metodo_pago,
+        referencia_pago: cuotaPagada.referencia_pago,
+      })
+    } else {
+      await comprasAPI.pagarCuota(token, cuotaPagada.id, {
+        metodo_pago: cuotaPagada.metodo_pago,
+        referencia_pago: cuotaPagada.referencia_pago,
+      })
+    }
+
+    const quitarCuota = cuota => !idsPagados.includes(cuota.id)
     const nuevasVencidas = vencidas.filter(quitarCuota)
     const nuevasCuotas = cuotas.filter(quitarCuota)
+    const cuotasHistorial = pagoMultiple ? cuotaPagada.cuotas : [cuotaPagada]
+    const cuotasPagadasHistorial = cuotasHistorial.map(cuota => ({
+      ...cuota,
+      estado: 'pagada',
+      metodo_pago: cuotaPagada.metodo_pago,
+      referencia_pago: cuotaPagada.referencia_pago,
+      pagada_en: cuotaPagada.pagada_en,
+    }))
 
     setVencidas(nuevasVencidas)
     setCuotas(nuevasCuotas)
     setHistorial(prev =>
-      [cuotaPagada, ...prev.filter(c => c.id !== cuotaPagada.id)]
+      [...cuotasPagadasHistorial, ...prev.filter(c => !idsPagados.includes(c.id))]
         .sort((a, b) => fechaHistorial(b) - fechaHistorial(a))
         .slice(0, MAX_HISTORIAL_ALERTAS)
     )
+    setSeleccionadas(prev => prev.filter(id => !idsPagados.includes(id)))
     setCuotaPago(null)
     setDesglosePago(null)
-    setMensajePago('Pago realizado con éxito')
+    setMensajePago(pagoMultiple ? 'Pagos realizados con éxito' : 'Pago realizado con éxito')
     actualizarBadge(nuevasVencidas, nuevasCuotas)
     setTimeout(() => setMensajePago(''), 3000)
   }
@@ -164,6 +224,7 @@ export default function AlertasView({ token, onCargado }) {
       {cuotaPago && (
         <PaymentModal
           cuota={cuotaPago}
+          cuotas={cuotaPago.cuotas || [cuotaPago]}
           desglose={desglosePago}
           onClose={() => { setCuotaPago(null); setDesglosePago(null) }}
           onConfirm={confirmarPago}
@@ -202,6 +263,52 @@ export default function AlertasView({ token, onCargado }) {
         </div>
       )}
 
+      {todasLasCuotas.length > 0 && (
+        <div className="kueski-panel" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '12px 14px',
+          border: seleccionadas.length > 0 ? '1.5px solid var(--kueski-primary-border)' : '1px solid var(--kueski-border)',
+          background: seleccionadas.length > 0 ? 'var(--kueski-primary-soft)' : 'var(--kueski-card)',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--kueski-text)' }}>
+              {seleccionadas.length > 0 ? `${seleccionadas.length} seleccionada${seleccionadas.length === 1 ? '' : 's'}` : 'Selecciona cuotas'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', marginTop: 2 }}>
+              Total base ${totalSeleccionado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {seleccionadas.length > 0 && (
+              <button className="kueski-mini-button" onClick={limpiarSeleccion} style={{
+                padding: '7px 10px',
+                borderRadius: 8,
+                background: 'var(--kueski-surface)',
+                color: 'var(--kueski-text-muted)',
+                fontSize: 11,
+                fontWeight: 800,
+              }}>
+                Limpiar
+              </button>
+            )}
+            <button className="kueski-mini-button" onClick={abrirPagoSeleccionado} disabled={seleccionadas.length === 0 || cargandoDesgloseId === 'multiple'} style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              background: seleccionadas.length === 0 ? 'var(--kueski-border)' : 'var(--kueski-primary)',
+              color: seleccionadas.length === 0 ? 'var(--kueski-text-muted)' : 'white',
+              fontSize: 11,
+              fontWeight: 800,
+              opacity: cargandoDesgloseId === 'multiple' ? 0.7 : 1,
+            }}>
+              {cargandoDesgloseId === 'multiple' ? 'Cargando...' : 'Pagar todo'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ===== SECCIÓN: Pagos vencidos ===== */}
       {vencidas.length > 0 && (
         <div>
@@ -227,6 +334,13 @@ export default function AlertasView({ token, onCargado }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={seleccionadas.includes(cuota.id)}
+                    onChange={() => toggleSeleccion(cuota.id)}
+                    aria-label={`Seleccionar cuota ${cuota.numero_cuota} de ${cuota.comercio}`}
+                    style={{ width: 16, height: 16, accentColor: 'var(--kueski-primary)', flexShrink: 0 }}
+                  />
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--kueski-text)' }}>
@@ -290,6 +404,13 @@ export default function AlertasView({ token, onCargado }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={seleccionadas.includes(cuota.id)}
+                      onChange={() => toggleSeleccion(cuota.id)}
+                      aria-label={`Seleccionar cuota ${cuota.numero_cuota} de ${cuota.comercio}`}
+                      style={{ width: 16, height: 16, accentColor: 'var(--kueski-primary)', flexShrink: 0 }}
+                    />
                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--kueski-text)' }}>

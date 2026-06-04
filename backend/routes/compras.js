@@ -57,6 +57,54 @@ const calcularDesgloseCuota = (cuota) => {
   };
 };
 
+const recalcularRiesgoUsuario = async (client, usuarioId) => {
+  const vencidasResult = await client.query(
+    `SELECT COUNT(*) AS total
+     FROM cuotas cu
+     JOIN compras c ON c.id = cu.compra_id
+     WHERE c.usuario_id = $1 AND cu.estado = 'vencida'`,
+    [usuarioId]
+  )
+
+  const cuotasVencidas = parseInt(vencidasResult.rows[0].total)
+  const nivel = cuotasVencidas === 0 ? 'bajo' : cuotasVencidas <= 2 ? 'medio' : 'alto'
+  await client.query(
+    `UPDATE perfil_financiero
+     SET nivel_riesgo = $1, updated_at = NOW()
+     WHERE usuario_id = $2`,
+    [nivel, usuarioId]
+  )
+
+  return { cuotasVencidas, nivel }
+}
+
+const actualizarComprasCompletadas = async (client, compraIds, usuarioId) => {
+  const idsUnicos = [...new Set(compraIds)]
+  if (idsUnicos.length === 0) return []
+
+  const completadas = []
+  for (const compraId of idsUnicos) {
+    const pendientesResult = await client.query(
+      `SELECT COUNT(*) AS total
+       FROM cuotas
+       WHERE compra_id = $1 AND estado <> 'pagada'`,
+      [compraId]
+    )
+
+    if (parseInt(pendientesResult.rows[0].total) === 0) {
+      await client.query(
+        `UPDATE compras
+         SET estado = 'completada'
+         WHERE id = $1 AND usuario_id = $2`,
+        [compraId, usuarioId]
+      )
+      completadas.push(compraId)
+    }
+  }
+
+  return completadas
+}
+
 // GET /api/compras
 router.get('/', auth, async (req, res) => {
   try {
@@ -161,6 +209,53 @@ router.get('/cuotas/:id/desglose', auth, async (req, res) => {
   }
 })
 
+// POST /api/compras/cuotas/desglose — calcula el total de varias cuotas seleccionadas
+router.post('/cuotas/desglose', auth, async (req, res) => {
+  try {
+    const cuotaIds = Array.isArray(req.body.cuota_ids)
+      ? req.body.cuota_ids.map(Number).filter(Number.isInteger)
+      : []
+
+    if (cuotaIds.length === 0) {
+      return res.status(400).json({ error: 'Selecciona al menos una cuota' })
+    }
+
+    const cuotaResult = await pool.query(
+      `SELECT cu.id, cu.compra_id, cu.numero_cuota, cu.monto, cu.fecha_vencimiento, cu.estado
+       FROM cuotas cu
+       JOIN compras c ON c.id = cu.compra_id
+       WHERE cu.id = ANY($1::int[]) AND c.usuario_id = $2
+       ORDER BY cu.fecha_vencimiento, cu.numero_cuota`,
+      [cuotaIds, req.usuario.id]
+    )
+
+    if (cuotaResult.rows.length !== new Set(cuotaIds).size) {
+      return res.status(404).json({ error: 'Una o más cuotas no existen' })
+    }
+
+    if (cuotaResult.rows.some(cuota => cuota.estado === 'pagada')) {
+      return res.status(400).json({ error: 'Una o más cuotas ya están pagadas' })
+    }
+
+    const cuotas = cuotaResult.rows.map(calcularDesgloseCuota)
+    const total = cuotas.reduce((acc, cuota) => ({
+      monto_original: redondearDinero(acc.monto_original + cuota.monto_original),
+      multa_acumulada: redondearDinero(acc.multa_acumulada + cuota.multa_acumulada),
+      interes_acumulado: redondearDinero(acc.interes_acumulado + cuota.interes_acumulado),
+      total_a_pagar: redondearDinero(acc.total_a_pagar + cuota.total_a_pagar),
+    }), {
+      monto_original: 0,
+      multa_acumulada: 0,
+      interes_acumulado: 0,
+      total_a_pagar: 0,
+    })
+
+    res.json({ cuotas, total })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // POST /api/compras/cuotas/:id/pagar — registra el pago de una cuota
 router.post('/cuotas/:id/pagar', auth, async (req, res) => {
   const client = await pool.connect()
@@ -196,45 +291,80 @@ router.post('/cuotas/:id/pagar', auth, async (req, res) => {
       [cuota.id]
     )
 
-    const pendientesResult = await client.query(
-      `SELECT COUNT(*) AS total
-       FROM cuotas
-       WHERE compra_id = $1 AND estado <> 'pagada'`,
-      [cuota.compra_id]
-    )
-
-    const compraCompletada = parseInt(pendientesResult.rows[0].total) === 0
-    if (compraCompletada) {
-      await client.query(
-        `UPDATE compras
-         SET estado = 'completada'
-         WHERE id = $1 AND usuario_id = $2`,
-        [cuota.compra_id, req.usuario.id]
-      )
-    }
-
-    const vencidasResult = await client.query(
-      `SELECT COUNT(*) AS total
-       FROM cuotas cu
-       JOIN compras c ON c.id = cu.compra_id
-       WHERE c.usuario_id = $1 AND cu.estado = 'vencida'`,
-      [req.usuario.id]
-    )
-
-    const cuotasVencidas = parseInt(vencidasResult.rows[0].total)
-    const nivel = cuotasVencidas === 0 ? 'bajo' : cuotasVencidas <= 2 ? 'medio' : 'alto'
-    await client.query(
-      `UPDATE perfil_financiero
-       SET nivel_riesgo = $1, updated_at = NOW()
-       WHERE usuario_id = $2`,
-      [nivel, req.usuario.id]
-    )
+    const comprasCompletadas = await actualizarComprasCompletadas(client, [cuota.compra_id], req.usuario.id)
+    const { cuotasVencidas, nivel } = await recalcularRiesgoUsuario(client, req.usuario.id)
 
     await client.query('COMMIT')
     res.json({
       mensaje: 'Pago registrado correctamente',
       cuota: cuotaPagadaResult.rows[0],
-      compra_completada: compraCompletada,
+      compra_completada: comprasCompletadas.includes(cuota.compra_id),
+      cuotas_vencidas: cuotasVencidas,
+      nivel_riesgo: nivel
+    })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    res.status(500).json({ error: e.message })
+  } finally {
+    client.release()
+  }
+})
+
+// POST /api/compras/cuotas/pagar — registra el pago de varias cuotas en una sola transacción
+router.post('/cuotas/pagar', auth, async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const cuotaIds = Array.isArray(req.body.cuota_ids)
+      ? req.body.cuota_ids.map(Number).filter(Number.isInteger)
+      : []
+
+    if (cuotaIds.length === 0) {
+      return res.status(400).json({ error: 'Selecciona al menos una cuota' })
+    }
+
+    await client.query('BEGIN')
+
+    const cuotaResult = await client.query(
+      `SELECT cu.id, cu.compra_id, cu.numero_cuota, cu.monto, cu.fecha_vencimiento, cu.estado,
+              c.usuario_id, c.estado AS compra_estado
+       FROM cuotas cu
+       JOIN compras c ON c.id = cu.compra_id
+       WHERE cu.id = ANY($1::int[]) AND c.usuario_id = $2
+       ORDER BY cu.fecha_vencimiento, cu.numero_cuota
+       FOR UPDATE`,
+      [cuotaIds, req.usuario.id]
+    )
+
+    if (cuotaResult.rows.length !== new Set(cuotaIds).size) {
+      await client.query('ROLLBACK')
+      return res.status(404).json({ error: 'Una o más cuotas no existen' })
+    }
+
+    if (cuotaResult.rows.some(cuota => cuota.estado === 'pagada')) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Una o más cuotas ya están pagadas' })
+    }
+
+    const cuotaPagadaResult = await client.query(
+      `UPDATE cuotas
+       SET estado = 'pagada'
+       WHERE id = ANY($1::int[])
+       RETURNING id, compra_id, numero_cuota, monto, fecha_vencimiento, estado`,
+      [cuotaIds]
+    )
+
+    const comprasCompletadas = await actualizarComprasCompletadas(
+      client,
+      cuotaPagadaResult.rows.map(cuota => cuota.compra_id),
+      req.usuario.id
+    )
+    const { cuotasVencidas, nivel } = await recalcularRiesgoUsuario(client, req.usuario.id)
+
+    await client.query('COMMIT')
+    res.json({
+      mensaje: 'Pagos registrados correctamente',
+      cuotas: cuotaPagadaResult.rows,
+      compras_completadas: comprasCompletadas,
       cuotas_vencidas: cuotasVencidas,
       nivel_riesgo: nivel
     })

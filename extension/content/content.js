@@ -7,6 +7,12 @@
         '.a-price .a-offscreen',
         '#price_inside_buybox',
         '#priceblock_ourprice'
+      ],
+      selectoresCarrito: [
+        '#sc-subtotal-amount-activecart .a-offscreen',
+        '#sc-subtotal-amount-buybox .a-offscreen',
+        '[data-name="Subtotals"] .a-offscreen',
+        '.sc-price',
       ]
     },
     'elpalaciodehierro.com': {
@@ -15,6 +21,17 @@
         '.b-product_price-sales .b-product_price-value',
         '.b-product_price-value[content]',
         '[data-js-line-item-price-sales] .b-product_price-value',
+      ],
+      selectoresCarrito: [
+        '[data-js-sub-total]',
+        '[data-js-grand-total]',
+        '[data-js-order-total]',
+        '.b-cart_summary-row.m-total .b-cart_summary-value',
+        '.b-cart_summary-row.m-subtotal .b-cart_summary-value',
+        '[class*="order" i] [class*="total" i]',
+        '[class*="summary" i] [class*="total" i]',
+        '[class*="totals" i]',
+        '[class*="subtotal" i]',
       ]
     },
     'chedraui.com.mx': {
@@ -144,6 +161,22 @@
     return false
   }
 
+  const esPaginaCarrito = () => {
+    if (dominio === 'amazon.com.mx') {
+      return /\/gp\/cart|\/cart|\/cart\/view/i.test(location.pathname)
+    }
+
+    if (dominio === 'elpalaciodehierro.com') {
+      return /bolsa|cart|carrito|checkout/i.test(location.pathname)
+    }
+
+    if (dominio === 'chedraui.com.mx') {
+      return /cart|carrito|checkout/i.test(location.pathname)
+    }
+
+    return false
+  }
+
   // Función reutilizable para re-detectar al cambiar de tienda
   const detectarComercioYEnviar = () => {
     const dominio = Object.keys(COMERCIOS).find(d => location.hostname.includes(d))
@@ -169,6 +202,10 @@
   const parsearMonto = (texto) => {
     if (!texto) return null
 
+    const matchesPesos = [...texto.matchAll(/\$\s*([\d,]+(?:\.\d{1,2})?)/g)]
+    if (matchesPesos.length > 0) {
+      return parseFloat(matchesPesos[matchesPesos.length - 1][1].replace(/,/g, ''))
+    }
 
     let limpio = texto.trim().replace(/[^0-9.,]/g, '')
     if (!limpio) return null
@@ -204,6 +241,11 @@
 
 
   const extraerMonto = () => {
+    if (dominio === 'chedraui.com.mx') {
+      const montoChedraui = extraerMontoChedraui()
+      if (montoChedraui) return montoChedraui
+    }
+
     for (const selector of comercio.selectores) {
       const el = document.querySelector(selector)
       if (el) {
@@ -223,8 +265,130 @@
     return null
   }
 
+  const esVisible = (el) => {
+    const rect = el.getBoundingClientRect()
+    const style = window.getComputedStyle(el)
+    return rect.width > 0 &&
+      rect.height > 0 &&
+      style.display !== 'none' &&
+      style.visibility !== 'hidden' &&
+      Number(style.opacity) !== 0
+  }
+
+  const estaTachado = (el) => {
+    let actual = el
+    let profundidad = 0
+
+    while (actual && actual !== document.body && profundidad < 4) {
+      const style = window.getComputedStyle(actual)
+      const decoration = `${style.textDecorationLine} ${style.textDecoration}`.toLowerCase()
+      const clases = String(actual.className || '').toLowerCase()
+      if (decoration.includes('line-through') || clases.includes('old') || clases.includes('strike')) {
+        return true
+      }
+      actual = actual.parentElement
+      profundidad += 1
+    }
+
+    return false
+  }
+
+  const extraerMontoChedraui = () => {
+    const candidatos = [...document.querySelectorAll('span, div, p')]
+      .map(el => {
+        const texto = el.textContent || ''
+        const monto = parsearMonto(texto)
+        if (!monto || monto < 10 || monto > 500000) return null
+        if (!texto.includes('$')) return null
+        if (!esVisible(el) || estaTachado(el)) return null
+
+        const style = window.getComputedStyle(el)
+        return {
+          monto,
+          fontSize: parseFloat(style.fontSize) || 0,
+          fontWeight: parseInt(style.fontWeight, 10) || 400,
+          top: el.getBoundingClientRect().top,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) =>
+        b.fontSize - a.fontSize ||
+        b.fontWeight - a.fontWeight ||
+        a.top - b.top
+      )
+
+    return candidatos[0]?.monto || null
+  }
+
+  const extraerMontos = (texto) => {
+    if (!texto) return []
+    return [...texto.matchAll(/\$\s*([\d,]+(?:\.\d{1,2})?)/g)]
+      .map(match => parseFloat(match[1].replace(/,/g, '')))
+      .filter(monto => monto >= 10 && monto <= 500000)
+  }
+
+  const extraerMontoDesdeTextoCercano = () => {
+    const candidatos = [...document.querySelectorAll('span, div, td, p')]
+      .map(el => {
+        const texto = el.textContent || ''
+        if (!/(subtotal|total|resumen|orden|bolsa)/i.test(texto) || !/\$/.test(texto)) return null
+        if (!esVisible(el)) return null
+
+        const montos = extraerMontos(texto)
+        if (montos.length === 0) return null
+
+        return {
+          monto: montos[montos.length - 1],
+          texto,
+          prioridad: /total/i.test(texto) ? 2 : /subtotal/i.test(texto) ? 1 : 0,
+          area: el.getBoundingClientRect().width * el.getBoundingClientRect().height,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) =>
+        b.prioridad - a.prioridad ||
+        a.area - b.area ||
+        b.monto - a.monto
+      )
+
+    return candidatos[0]?.monto || null
+  }
+
+  const extraerMontoCarrito = () => {
+    const selectores = comercio.selectoresCarrito || []
+
+    for (const selector of selectores) {
+      const elementos = [...document.querySelectorAll(selector)]
+      for (const el of elementos) {
+        const texto = el.textContent || el.getAttribute('content') || ''
+        const monto = parsearMonto(texto)
+        if (monto && monto >= 10 && monto <= 500000) return monto
+      }
+    }
+
+    if (dominio === 'elpalaciodehierro.com') {
+      const resumen = document.querySelector('.b-cart_summary, [data-component="cart/Totals"]')
+      if (resumen) {
+        const montoResumen = parsearMonto(resumen.textContent || '')
+        if (montoResumen && montoResumen >= 10 && montoResumen <= 500000) return montoResumen
+      }
+    }
+
+    return extraerMontoDesdeTextoCercano()
+  }
+
 
   const enviarMonto = () => {
+    if (esPaginaCarrito()) {
+      const montoCarrito = extraerMontoCarrito()
+      if (montoCarrito) {
+        chrome.runtime.sendMessage({ tipo: 'MONTO', monto: montoCarrito, origen: 'carrito' })
+      } else {
+        limpiarMonto()
+      }
+      return
+    }
+
     if (!esPaginaProducto()) {
       limpiarMonto()
       return
@@ -232,7 +396,7 @@
 
     const monto = extraerMonto()
     if (monto) {
-      chrome.runtime.sendMessage({ tipo: 'MONTO', monto })
+      chrome.runtime.sendMessage({ tipo: 'MONTO', monto, origen: 'producto' })
     } else {
       limpiarMonto()
     }

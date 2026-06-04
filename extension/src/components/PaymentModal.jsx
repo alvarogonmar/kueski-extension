@@ -19,7 +19,7 @@ const formatearVencimiento = (value) => {
 const formatMoney = (value) =>
   Number(value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
 
-export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
+export default function PaymentModal({ cuota, cuotas = [], desglose, onClose, onConfirm }) {
   const [metodo, setMetodo] = useState('tarjeta')
   const [form, setForm] = useState({
     titular: '',
@@ -30,6 +30,8 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
   const [error, setError] = useState('')
   const [confirmando, setConfirmando] = useState(false)
   const referencia = useMemo(() => generarReferencia(), [])
+  const esPagoMultiple = cuotas.length > 1
+  const totalDesglose = desglose?.total || desglose
 
   const setField = (field, value) => {
     const nextValue = {
@@ -118,7 +120,9 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
               Elegir método de pago
             </div>
             <div style={{ fontSize: 12, color: 'var(--kueski-text-muted)', marginTop: 2 }}>
-              {cuota?.comercio} · Cuota {cuota?.numero_cuota}
+              {esPagoMultiple
+                ? `${cuotas.length} cuotas seleccionadas`
+                : `${cuota?.comercio} · Cuota ${cuota?.numero_cuota}`}
             </div>
           </div>
           <button className="kueski-icon-button" onClick={onClose} style={{
@@ -130,7 +134,7 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
           </button>
         </div>
 
-        {desglose && (
+        {totalDesglose && (
           <div className="kueski-panel" style={{
             background: 'var(--kueski-surface)',
             border: '1px solid var(--kueski-border)',
@@ -148,9 +152,12 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <DetallePago label="Monto original" value={desglose.monto_original} />
-              <DetallePago label="Multa acumulada" value={desglose.multa_acumulada} />
-              <DetallePago label="Interés acumulado" value={desglose.interes_acumulado} />
+              {esPagoMultiple && (
+                <DetallePago label="Cuotas incluidas" value={cuotas.length} plain />
+              )}
+              <DetallePago label="Monto original" value={totalDesglose.monto_original} />
+              <DetallePago label="Multa acumulada" value={totalDesglose.multa_acumulada} />
+              <DetallePago label="Interés acumulado" value={totalDesglose.interes_acumulado} />
               <div style={{
                 borderTop: '1px solid var(--kueski-border)',
                 paddingTop: 9,
@@ -163,19 +170,19 @@ export default function PaymentModal({ cuota, desglose, onClose, onConfirm }) {
                   Total a pagar
                 </span>
                 <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--kueski-blue)' }}>
-                  ${formatMoney(desglose.total_a_pagar)}
+                  ${formatMoney(totalDesglose.total_a_pagar)}
                 </span>
               </div>
             </div>
 
-            {desglose.dias_vencida > 0 && (
+            {!esPagoMultiple && totalDesglose.dias_vencida > 0 && (
               <div style={{
                 marginTop: 10,
                 fontSize: 11,
                 color: 'var(--kueski-text-muted)',
                 lineHeight: 1.4,
               }}>
-                {desglose.dias_vencida} día{desglose.dias_vencida === 1 ? '' : 's'} de atraso.
+                {totalDesglose.dias_vencida} día{totalDesglose.dias_vencida === 1 ? '' : 's'} de atraso.
               </div>
             )}
           </div>
@@ -261,7 +268,7 @@ const inputStyle = {
   outline: 'none',
 }
 
-function DetallePago({ label, value }) {
+function DetallePago({ label, value, plain = false }) {
   return (
     <div style={{
       display: 'flex',
@@ -272,7 +279,7 @@ function DetallePago({ label, value }) {
     }}>
       <span style={{ color: 'var(--kueski-text-muted)' }}>{label}</span>
       <span style={{ color: 'var(--kueski-text)', fontWeight: 700 }}>
-        ${formatMoney(value)}
+        {plain ? value : `$${formatMoney(value)}`}
       </span>
     </div>
   )

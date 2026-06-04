@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { calculadoraAPI, favoritosAPI } from '../services/api.js'
 
 
-export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, nivelRiesgo, cuotasVencidas }) {
+export default function HomeCard({ usuario, comercio, monto, origenMonto, onVerPlan, token, nivelRiesgo, cuotasVencidas }) {
   const [perfil, setPerfil] = useState(null)
   const [esFavorito, setEsFavorito] = useState(false)
   const [loadingFav, setLoadingFav] = useState(false)
@@ -12,6 +12,7 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
   const perfilEnEvaluacion = !!perfil && !Number.isFinite(creditoDisponible)
   const cuentaRestringida = cuotasVencidas > 0 && nivelRiesgo === 'alto'
   const puedeVerPlan = !cuentaRestringida && !perfilEnEvaluacion
+  const montoEsCarrito = origenMonto === 'carrito'
 
 
   useEffect(() => {
@@ -139,11 +140,22 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
           padding: '16px', border: '1px solid var(--kueski-border)',
         }}>
           <div style={{ fontSize: 11, color: 'var(--kueski-text-muted)', fontWeight: 600, marginBottom: 6 }}>
-            MONTO DETECTADO
+            {montoEsCarrito ? 'CARRITO DETECTADO' : 'MONTO DETECTADO'}
           </div>
           <div className="home-card-amount-value" style={{ fontSize: 28, fontWeight: 800, color: 'var(--kueski-blue)', marginBottom: 12 }}>
             ${Number(monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
+          {montoEsCarrito && (
+            <div style={{
+              fontSize: 12,
+              color: 'var(--kueski-text-muted)',
+              lineHeight: 1.4,
+              marginTop: -4,
+              marginBottom: 12,
+            }}>
+              Subtotal seleccionado del carrito
+            </div>
+          )}
           {/* NUEVO — deshabilitar botón si tiene cuenta restringida */}
           <button
             className={!puedeVerPlan ? 'btn-secondary' : 'btn-primary'}
