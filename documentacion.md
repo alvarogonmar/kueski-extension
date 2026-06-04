@@ -1813,3 +1813,270 @@ npm run build
 ```
 
 El build de la extension termino correctamente.
+
+## 22. Pago multiple y deteccion de carrito
+
+Se agrego soporte para dos mejoras funcionales importantes:
+
+- Pago multiple de cuotas desde Alertas.
+- Deteccion de subtotales/totales de carrito en tiendas afiliadas.
+
+### Pago multiple desde Alertas
+
+Antes, cada cuota pendiente o vencida se pagaba de forma individual desde `AlertView.jsx`.
+
+Ahora el usuario puede:
+
+1. Seleccionar varias cuotas con checkbox.
+2. Ver cuantas cuotas selecciono.
+3. Ver el total base acumulado.
+4. Abrir el modal con `Pagar todo`.
+5. Elegir metodo de pago.
+6. Confirmar un solo pago para todas las cuotas seleccionadas.
+
+Archivos principales:
+
+- `extension/src/components/AlertView.jsx`
+- `extension/src/components/PaymentModal.jsx`
+- `extension/src/services/api.js`
+- `backend/routes/compras.js`
+
+El pago individual se conserva. El pago multiple es una opcion adicional.
+
+### Endpoints agregados para pago multiple
+
+#### `POST /api/compras/cuotas/desglose`
+
+Calcula el desglose acumulado de varias cuotas antes de pagar.
+
+Body:
+
+```json
+{
+  "cuota_ids": [1, 2, 3]
+}
+```
+
+Respuesta esperada:
+
+```json
+{
+  "cuotas": [
+    {
+      "cuota_id": 1,
+      "compra_id": 10,
+      "numero_cuota": 1,
+      "monto_original": 250,
+      "multa_acumulada": 0,
+      "interes_acumulado": 0,
+      "total_a_pagar": 250
+    }
+  ],
+  "total": {
+    "monto_original": 750,
+    "multa_acumulada": 0,
+    "interes_acumulado": 0,
+    "total_a_pagar": 750
+  }
+}
+```
+
+Validaciones:
+
+- Debe venir al menos una cuota.
+- Todas las cuotas deben existir.
+- Todas las cuotas deben pertenecer al usuario autenticado.
+- No se permite incluir cuotas ya pagadas.
+
+#### `POST /api/compras/cuotas/pagar`
+
+Registra el pago de varias cuotas en una sola transaccion.
+
+Body:
+
+```json
+{
+  "cuota_ids": [1, 2, 3],
+  "metodo_pago": "tarjeta",
+  "referencia_pago": null
+}
+```
+
+Comportamiento:
+
+- Usa transaccion con `BEGIN` / `COMMIT`.
+- Bloquea cuotas con `FOR UPDATE`.
+- Actualiza `cuotas.estado = 'pagada'`.
+- Revisa cada compra afectada.
+- Si una compra queda sin cuotas pendientes, actualiza `compras.estado = 'completada'`.
+- Recalcula `perfil_financiero.nivel_riesgo`.
+
+Respuesta esperada:
+
+```json
+{
+  "mensaje": "Pagos registrados correctamente",
+  "cuotas": [
+    {
+      "id": 1,
+      "compra_id": 10,
+      "numero_cuota": 1,
+      "monto": 250,
+      "estado": "pagada"
+    }
+  ],
+  "compras_completadas": [10],
+  "cuotas_vencidas": 0,
+  "nivel_riesgo": "bajo"
+}
+```
+
+### Modal de pago con una o varias cuotas
+
+`PaymentModal.jsx` ahora acepta:
+
+- `cuota`: cuota individual o placeholder del pago multiple.
+- `cuotas`: arreglo de cuotas seleccionadas.
+- `desglose`: desglose individual o desglose acumulado.
+
+Cuando hay varias cuotas:
+
+- El encabezado muestra `N cuotas seleccionadas`.
+- El desglose muestra `Cuotas incluidas`.
+- El total a pagar usa `desglose.total.total_a_pagar`.
+- El metodo de pago sigue siendo tarjeta u OXXO.
+
+### Deteccion de monto por origen
+
+El content script ahora distingue de donde viene el monto:
+
+- `producto`: precio detectado en pagina de producto.
+- `carrito`: subtotal o total detectado en carrito/bolsa.
+
+Mensaje enviado:
+
+```js
+chrome.runtime.sendMessage({
+  tipo: 'MONTO',
+  monto,
+  origen: 'carrito'
+})
+```
+
+`background/background.js` persiste:
+
+- `last_monto`
+- `last_origen_monto`
+
+`App.jsx` restaura ambos valores al abrir el popup.
+
+`HomeCard.jsx` muestra:
+
+- `MONTO DETECTADO` cuando el origen es producto.
+- `CARRITO DETECTADO` cuando el origen es carrito.
+
+### Deteccion de carrito por tienda
+
+#### Amazon Mexico
+
+Rutas consideradas carrito:
+
+- `/gp/cart`
+- `/cart`
+- `/cart/view`
+
+Selectores:
+
+```js
+#sc-subtotal-amount-activecart .a-offscreen
+#sc-subtotal-amount-buybox .a-offscreen
+[data-name="Subtotals"] .a-offscreen
+.sc-price
+```
+
+#### Palacio de Hierro
+
+Rutas consideradas carrito:
+
+- `/bolsa`
+- `cart`
+- `carrito`
+- `checkout`
+
+Selectores:
+
+```js
+[data-js-sub-total]
+[data-js-grand-total]
+[data-js-order-total]
+.b-cart_summary-row.m-total .b-cart_summary-value
+.b-cart_summary-row.m-subtotal .b-cart_summary-value
+.b-cart_summary
+[data-component="cart/Totals"]
+```
+
+Caso corregido:
+
+- Antes podia tomar `$7,074.00` de un articulo individual.
+- Ahora toma `$10,313.46` desde el resumen de la bolsa.
+
+#### Chedraui
+
+Rutas consideradas carrito:
+
+- `cart`
+- `carrito`
+- `checkout`
+
+### Correccion de precios con descuento en Chedraui
+
+En Chedraui se detecto que el selector generico podia tomar el precio anterior tachado.
+
+Ejemplo:
+
+```text
+Precio anterior: $200.00/kg
+Precio vigente:  $160.00/kg
+```
+
+Solucion:
+
+- Se agrego extraccion especial para `chedraui.com.mx`.
+- Se ignoran elementos invisibles.
+- Se ignoran elementos con `text-decoration: line-through`.
+- Se ignoran clases que contengan `old` o `strike`.
+- Se prioriza el precio visible mas prominente.
+
+### Mejora de parseo de montos
+
+`parsearMonto()` ahora prioriza montos que aparecen despues de `$`.
+
+Esto evita que textos como:
+
+```text
+Subtotal (2 productos): $788.00
+```
+
+se contaminen con el numero `2` de productos.
+
+### Validacion de esta actualizacion
+
+Comandos ejecutados:
+
+```bash
+cd extension
+npm run build
+```
+
+```bash
+node --check extension/content/content.js
+node --check extension/background/background.js
+node --check backend/routes/compras.js
+```
+
+Resultado:
+
+- Build de extension correcto.
+- Sintaxis de content script correcta.
+- Sintaxis de background correcta.
+- Sintaxis de ruta de compras correcta.

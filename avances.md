@@ -1747,3 +1747,174 @@ Se reemplazaron elementos que se veían demasiado informales o poco alineados co
 | Perfil con animaciones como el resto del popup    | ✅     |
 | Pantalla de evaluación sin línea visual invasiva  | ✅     |
 | Build de extensión                                | ✅     |
+
+---
+
+# Reporte de Avance — Sesión 11
+
+## Kueski Pay Chrome Extension
+
+**Fecha:** 4 de Junio 2026  
+**Continuación de:** Reporte Sesión 10
+
+---
+
+## Lo que se implementó en esta sesión
+
+### 1. Pago múltiple de cuotas desde Alertas
+
+Se agregó una mejora al flujo de pagos para que el usuario no tenga que pagar cuota por cuota de forma individual.
+
+**Problema:** En Alertas, cada cuota pendiente o vencida tenía su propio botón `Pagar`, por lo que el usuario debía abrir el modal y confirmar cada pago por separado.
+
+**Solución implementada:**
+
+- Se agregaron checkboxes a las cuotas pendientes y vencidas.
+- Se agregó un resumen de cuotas seleccionadas con total base acumulado.
+- Se agregó el botón `Pagar todo`.
+- El modal de pago ahora puede recibir una sola cuota o un conjunto de cuotas.
+- El historial de alertas se actualiza con todas las cuotas pagadas.
+- Se conservó el botón `Pagar` individual para no romper el flujo existente.
+
+**Archivos modificados:**
+
+- `extension/src/components/AlertView.jsx`
+- `extension/src/components/PaymentModal.jsx`
+- `extension/src/services/api.js`
+- `backend/routes/compras.js`
+
+---
+
+### 2. Pago múltiple persistente en base de datos
+
+Se agregaron endpoints nuevos en el backend para que el pago múltiple no sea solo visual, sino que actualice la base de datos en una sola transacción.
+
+**Endpoints agregados:**
+
+| Endpoint                         | Método | Descripción                                      |
+| -------------------------------- | ------ | ------------------------------------------------ |
+| `/api/compras/cuotas/desglose`   | POST   | Calcula desglose acumulado de varias cuotas      |
+| `/api/compras/cuotas/pagar`      | POST   | Marca varias cuotas como pagadas en transacción  |
+
+**Comportamiento:**
+
+- Valida que todas las cuotas pertenezcan al usuario autenticado.
+- Bloquea las cuotas con `FOR UPDATE` durante la transacción.
+- Rechaza el pago si alguna cuota no existe o ya está pagada.
+- Actualiza `cuotas.estado = 'pagada'` para todas las seleccionadas.
+- Si una compra queda sin cuotas pendientes, actualiza `compras.estado = 'completada'`.
+- Recalcula `nivel_riesgo` del usuario después del pago.
+
+---
+
+### 3. Detección de subtotal de carrito
+
+Se extendió el `content/content.js` para detectar montos de carrito, no solo precios de producto.
+
+**Problema:** La extensión solo estaba pensada para páginas de producto. Al estar en carrito, podía limpiar el monto o tomar el precio de un producto individual.
+
+**Solución implementada:**
+
+- Se agregó detección de página de carrito.
+- Se agregó `origen` del monto: `producto` o `carrito`.
+- `background.js` guarda `last_origen_monto`.
+- `App.jsx` restaura `origenMonto` al abrir el popup.
+- `HomeCard.jsx` muestra `CARRITO DETECTADO` cuando el monto viene del carrito.
+
+**Casos cubiertos:**
+
+- Amazon: `/gp/cart`, `/cart`, `/cart/view`.
+- Palacio de Hierro: `/bolsa`, `cart`, `carrito`, `checkout`.
+- Chedraui: `cart`, `carrito`, `checkout`.
+
+---
+
+### 4. Selectores específicos para carritos por tienda
+
+Se agregaron selectores para tomar el total correcto del carrito en tiendas afiliadas.
+
+**Amazon:**
+
+- `#sc-subtotal-amount-activecart .a-offscreen`
+- `#sc-subtotal-amount-buybox .a-offscreen`
+- `[data-name="Subtotals"] .a-offscreen`
+- `.sc-price`
+
+**Palacio de Hierro:**
+
+- `[data-js-sub-total]`
+- `[data-js-grand-total]`
+- `[data-js-order-total]`
+- `.b-cart_summary-row.m-total .b-cart_summary-value`
+- `.b-cart_summary-row.m-subtotal .b-cart_summary-value`
+- `.b-cart_summary`
+- `[data-component="cart/Totals"]`
+
+Esto corrigió el caso donde en `/bolsa` se tomaba el precio de un artículo (`$7,074.00`) en lugar del total de la bolsa (`$10,313.46`).
+
+---
+
+### 5. Corrección de precios con descuento en Chedraui
+
+**Problema:** En productos de Chedraui con descuento, la extensión tomaba el precio anterior tachado, por ejemplo `$200.00/kg`, en lugar del precio vigente `$160.00/kg`.
+
+**Solución implementada:**
+
+- Se agregó extracción especial para `chedraui.com.mx`.
+- Se ignoran elementos invisibles.
+- Se ignoran precios con `text-decoration: line-through`.
+- Se ignoran clases tipo `old` o `strike`.
+- Entre los candidatos válidos, se elige el precio visible más prominente.
+
+---
+
+### 6. Mejora del parser de montos
+
+Se mejoró `parsearMonto()` para textos que contienen varios números.
+
+**Caso corregido:**
+
+```text
+Subtotal (2 productos): $788.00
+```
+
+Antes podía contaminarse con el `2` de productos. Ahora, cuando existe signo `$`, el parser toma primero los montos después del símbolo de pesos.
+
+---
+
+## Estado actualizado del proyecto
+
+| Módulo                                             | Estado |
+| -------------------------------------------------- | ------ |
+| Pago individual de cuotas                          | ✅     |
+| Pago múltiple de cuotas seleccionadas              | ✅     |
+| Desglose acumulado de cuotas seleccionadas         | ✅     |
+| Persistencia de pago múltiple en base de datos     | ✅     |
+| Actualización automática de compras completadas    | ✅     |
+| Recalculo de nivel de riesgo después de pagos      | ✅     |
+| Detección de monto en producto                     | ✅     |
+| Detección de subtotal en carrito Amazon            | ✅     |
+| Detección de total en bolsa Palacio de Hierro      | ✅     |
+| Corrección de precio con descuento en Chedraui     | ✅     |
+| Diferenciación visual producto/carrito en Home     | ✅     |
+| Build de extensión                                 | ✅     |
+
+---
+
+## Validación realizada
+
+Se ejecutaron las siguientes verificaciones:
+
+```bash
+cd extension
+npm run build
+```
+
+```bash
+node --check extension/content/content.js
+node --check extension/background/background.js
+node --check backend/routes/compras.js
+```
+
+**Resultado:** Todas las verificaciones terminaron correctamente.  
+**Nota:** En `backend/` no existe script `npm test`, por lo que no se ejecutaron pruebas automatizadas de backend.
