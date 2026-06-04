@@ -1739,3 +1739,77 @@ El proyecto puede considerarse funcional cuando:
 - `extension/src/components/PaymentModal.jsx`: modal de pago de cuotas.
 - `extension/src/components/LoginView.jsx`: login, registro, telefono, SMS y validaciones.
 - `extension/src/components/ProfileView.jsx`: perfil, PIN, preferencias y favoritos.
+
+## 21. Actualizacion visual y animaciones del popup
+
+Se agrego una capa de animaciones y microinteracciones para que el popup se sienta mas consistente entre pantallas y mas cercano a una experiencia de aplicacion movil.
+
+### Componentes actualizados
+
+- `extension/src/components/LoginView.jsx`
+- `extension/src/components/HomeCard.jsx`
+- `extension/src/components/PaymentPlan.jsx`
+- `extension/src/components/PinView.jsx`
+- `extension/src/components/CvvView.jsx`
+- `extension/src/components/AlertView.jsx`
+- `extension/src/components/PurchaseHistory.jsx`
+- `extension/src/components/ProfileView.jsx`
+- `extension/src/components/NoComercioView.jsx`
+- `extension/src/components/CreditPendingView.jsx`
+- `extension/src/components/PaymentModal.jsx`
+- `extension/src/components/NavBar.jsx`
+- `extension/src/App.jsx`
+- `extension/src/styles/index.css`
+
+### Cambios de experiencia
+
+- `LoginView.jsx` ahora muestra una pantalla de verificacion SMS con OTP separado en 6 casillas.
+- El cursor del OTP aparece solo en la casilla activa.
+- `HomeCard.jsx` tiene entrada suave de tarjetas, microinteracciones y animacion de comercio detectado.
+- `PaymentPlan.jsx` anima monto, opciones de quincenas y resultado de simulacion.
+- `PinView.jsx` mantiene el mismo patron visual del plan y agrega feedback en el input.
+- `CvvView.jsx` usa iconografia CSS sobria para candado, reloj, copiar, copiado y error.
+- `AlertView.jsx` usa loader circular y tarjetas animadas para vencidas, proximas e historial.
+- `PurchaseHistory.jsx` usa skeleton/loading y tarjetas animadas.
+- `ProfileView.jsx` ahora tiene animaciones en vista principal, preferencias y cambio/creacion de PIN.
+- `PaymentModal.jsx` entra como hoja inferior con animacion.
+- `CreditPendingView.jsx` conserva un layout limpio sin la linea de escaneo amarilla que cruzaba el texto.
+
+### Cambios de marca e interfaz
+
+- El encabezado superior cambio de texto `kueski pay` a logo real de Kueski.
+- El header usa fondo blanco, borde inferior y sombra ligera para parecerse mas a la app.
+- La navbar reemplazo simbolos y emojis por iconos CSS:
+  - Casa para Inicio.
+  - Campana minimalista para Alertas.
+  - Movimientos para Historial.
+  - Usuario para Perfil.
+- Los loaders con emoji fueron reemplazados por un spinner circular.
+- Se quitaron emojis de la pantalla de CVV para mantener una interfaz mas elegante.
+
+### Estilos compartidos
+
+La mayor parte de la animacion vive en `extension/src/styles/index.css` mediante clases reutilizables:
+
+- `kueski-animated-stack`
+- `kueski-panel`
+- `kueski-hero-panel`
+- `kueski-number-pop`
+- `kueski-spinner`
+- `kueski-skeleton`
+- `kueski-empty-state`
+- `kueski-success-pop`
+- `kueski-error-shake`
+
+Tambien se agrego soporte para `prefers-reduced-motion`, de forma que las animaciones se desactiven si el usuario prefiere menos movimiento.
+
+### Validacion realizada
+
+Se ejecuto:
+
+```bash
+cd extension
+npm run build
+```
+
+El build de la extension termino correctamente.

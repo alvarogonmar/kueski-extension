@@ -65,7 +65,6 @@ export default function HomeCard({ usuario, comercio, monto, onVerPlan, token, n
           borderRadius: 'var(--radius-md)', padding: '12px 14px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 18 }}>{nivelRiesgo === 'alto' ? '🔴' : '🟠'}</span>
             <span style={{ fontSize: 13, fontWeight: 700,
               color: nivelRiesgo === 'alto' ? '#ef4444' : '#f97316' }}>
               {nivelRiesgo === 'alto' ? 'Cuenta restringida' : 'Tienes pagos pendientes'}
