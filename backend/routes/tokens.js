@@ -9,7 +9,7 @@ router.post('/generar', auth, async (req, res) => {
   const { pin, comercio_id, monto, num_quincenas } = req.body;
   try {
 
-    // Verificar si el usuario tiene cuotas vencidas
+    // Restringir nuevas compras solo cuando el usuario alcanza riesgo alto.
     const vencidasResult = await pool.query(`
       SELECT COUNT(*) as total
       FROM cuotas cu
@@ -18,10 +18,10 @@ router.post('/generar', auth, async (req, res) => {
     `, [req.usuario.id])
 
     const cuotasVencidas = parseInt(vencidasResult.rows[0].total)
-    if (cuotasVencidas > 0) {
+    if (cuotasVencidas >= 3) {
       return res.status(403).json({
-        error: 'Tienes pagos vencidos',
-        detalle: `Tienes ${cuotasVencidas} cuota${cuotasVencidas > 1 ? 's' : ''} vencida${cuotasVencidas > 1 ? 's' : ''}. Ponte al corriente para seguir comprando.`,
+        error: 'Cuenta restringida por pagos vencidos',
+        detalle: `Tienes ${cuotasVencidas} cuotas vencidas. Paga al menos una para recuperar opciones de compra.`,
         cuotas_vencidas: cuotasVencidas
       })
     }

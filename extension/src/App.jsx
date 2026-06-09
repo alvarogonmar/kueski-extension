@@ -298,7 +298,14 @@ export default function App() {
         />
         )
         case 'alertas': return (
-        <AlertasView token={token} onCargado={(n) => setAlertasPendientes(n)} />
+        <AlertasView
+            token={token}
+            onCargado={(n) => setAlertasPendientes(n)}
+            onRiesgoActualizado={({ nivel_riesgo, cuotas_vencidas }) => {
+              setNivelRiesgo(nivel_riesgo)
+              setCuotasVencidas(cuotas_vencidas)
+            }}
+        />
         )
         default: return comercio ? ( // solo muestra HomeCard si hay comercio
         <HomeCard

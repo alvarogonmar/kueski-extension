@@ -14,7 +14,7 @@ const diasRestantes = (fecha) => {
 
 const fechaHistorial = (cuota) => new Date(cuota.pagada_en || cuota.fecha_vencimiento)
 
-export default function AlertasView({ token, onCargado }) {
+export default function AlertasView({ token, onCargado, onRiesgoActualizado }) {
   const [vencidas, setVencidas] = useState([])
   const [cuotas, setCuotas] = useState([])
   const [historial, setHistorial] = useState([])
@@ -165,17 +165,17 @@ export default function AlertasView({ token, onCargado }) {
       ? cuotaPagada.cuotas.map(cuota => cuota.id)
       : [cuotaPagada.id]
 
-    if (pagoMultiple) {
-      await comprasAPI.pagarCuotas(token, idsPagados, {
+    const resultadoPago = pagoMultiple
+      ? await comprasAPI.pagarCuotas(token, idsPagados, {
         metodo_pago: cuotaPagada.metodo_pago,
         referencia_pago: cuotaPagada.referencia_pago,
       })
-    } else {
-      await comprasAPI.pagarCuota(token, cuotaPagada.id, {
+      : await comprasAPI.pagarCuota(token, cuotaPagada.id, {
         metodo_pago: cuotaPagada.metodo_pago,
         referencia_pago: cuotaPagada.referencia_pago,
       })
-    }
+
+    onRiesgoActualizado?.(resultadoPago)
 
     const quitarCuota = cuota => !idsPagados.includes(cuota.id)
     const nuevasVencidas = vencidas.filter(quitarCuota)
